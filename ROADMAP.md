@@ -1,7 +1,7 @@
 # Roadmap: v0.1.0 to v1.0.0 (prototype) and beyond
 
 **Current status:** repo scaffold done (Claude files, CI, ADRs, memory bank). Next: **v0.1.0**. No application code exists yet.
-**Note:** `solution-design.md` (v1.2) and `project-statement-final.md` (v2.0), cited below, are kept in the Claude Project files, not in this repo.
+**Note:** `solution-design.md` (v1.2) and `project-statement-final.md` (v2.0), cited below, are in `docs/`.
 
 **Version 1.0 of this roadmap** · 2026-11-10 · Based on `solution-design.md` v1.2 and `project-statement-final.md` v2.0.
 **No dates or durations.** Versions are released in order, each when its gate is met (section 2). The prototype is **v1.0.0**.

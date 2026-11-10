@@ -27,6 +27,11 @@ Details: `memory-bank/architecture.md`.
 
 ## Docs
 - `ROADMAP.md`: versions, tests and reference results
+- `docs/project-statement-final.md`: requirements (v2.0)
+- `docs/solution-design.md`: full design (v1.2)
+- `docs/solution-options.md`: options compared
+- `docs/mentor-workbook-analysis.md`: how the reference workbooks work
+- `docs/prototype/`: throwaway engine used to validate the design (not the product)
 - `docs/adr/`: architecture decision records
 - `CLAUDE.md` and `.claude/`: instructions for Claude Code
 - `memory-bank/`: project context for AI sessions
