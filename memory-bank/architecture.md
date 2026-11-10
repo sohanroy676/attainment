@@ -1,6 +1,6 @@
 # Architecture
 
-Planned layout (from design section 17). Check which parts exist before relying on them.
+Planned layout (from `docs/solution-design.md` section 17). Check which parts exist before relying on them.
 
 ```
 config/            Django settings (base, dev, prod), urls, wsgi

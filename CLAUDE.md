@@ -9,7 +9,7 @@ Stack: Python 3.12, uv, Django 5.2 LTS, PostgreSQL 16+ (RLS), HTMX, Pydantic 2, 
 @memory-bank/activeContext.md
 @memory-bank/progress.md
 
-Read on demand: `memory-bank/architecture.md` (modules, calculation flow), `memory-bank/tech-stack.md` (commands, test locations), `memory-bank/systemPatterns.md`, `ROADMAP.md` (versions, tests, reference results), `docs/adr/` (decision records).
+Read on demand: `memory-bank/architecture.md` (modules, calculation flow), `memory-bank/tech-stack.md` (commands, test locations), `memory-bank/systemPatterns.md`, `ROADMAP.md` (versions, tests, reference results), `docs/solution-design.md` (full design; code layout in section 17), `docs/project-statement-final.md` (requirements), `docs/adr/` (decision records).
 
 ## Status
 Scaffold only: no application code yet. Next is v0.1.0 in `ROADMAP.md`. Folders in `architecture.md` may not exist; check first. The commands below start working in v0.1.0.
