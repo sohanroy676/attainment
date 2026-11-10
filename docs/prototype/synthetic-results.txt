@@ -1,0 +1,16 @@
+T1 log: [('x', 'Q17 part 17b dropped (best 2 parts)'), ('x', 'Q15 (total 2) dropped: best 5 kept')]
+T1 kept questions: ['11', '12', '13', '14', '17'] (expect 11,12,13,14,17; Q15 total 2 dropped; 17b dropped)
+T2 tie log: [('y', 'Q14 (total 4) dropped: best 5 kept')] (expect Q14 dropped by tie rule)
+T3 four attempted, log: [] -> a missing 5th question has no CO, so per-part % ignores it
+T4 exactly 1.8 of 3: {1: Decimal('100')} {1: Decimal('0')}
+T5 float trap: float 0.8*2.4+0.6 = 2.52  Decimal: 2.52
+T6 merged level: 2.5 -> direct = 2.250
+T7 band 9.99%: (None, 'BELOW_LOWEST_BAND')
+T8 nobody attempted -> CO dict: {} (CO2 missing for this tool: needs a rule)
+ALL SYNTHETIC CHECKS DONE
+
+T5b float trap found by search over all level combinations (internal, SEE, quiz, assignment):
+    internal 3, SEE 2, quiz 3, assignment 3 (the reference CO1 case):
+    float: 0.8*(0.30*3+0.05*3+0.05*3+0.60*2)+0.2*3 = 2.5199999999999996 -> truncated 2.51 (WRONG)
+    Decimal: 2.52 -> truncated 2.52 (matches the report)
+T9 rounding 2.845: Python default (half-even) = 2.84 | Excel ROUND (half-up) = 2.85 | round(2.845,2) on float = 2.85
