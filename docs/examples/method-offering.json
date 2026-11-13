@@ -1,0 +1,37 @@
+{
+ "schema": "attainment-method/1",
+ "name": "Sample offering method",
+ "levels": {
+  "bands": [
+   {
+    "min_pct": 60,
+    "level": 3
+   },
+   {
+    "min_pct": 50,
+    "level": 2
+   },
+   {
+    "min_pct": 10,
+    "level": 1
+   }
+  ]
+ },
+ "tools": {
+  "T": {
+   "behaviour": "question_wise",
+   "pass_pct": 60
+  }
+ },
+ "direct": {
+  "T": 1
+ },
+ "final": {
+  "direct": 0.8,
+  "indirect": 0.2
+ },
+ "rollup": {
+  "stage": "attainment",
+  "method": "mean"
+ }
+}
