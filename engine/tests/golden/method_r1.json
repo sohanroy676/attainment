@@ -1,0 +1,30 @@
+{
+  "schema": "attainment-method/1",
+  "name": "Vasavi OBE (theory), decided rules 2026-11-09",
+  "levels": {
+    "bands": [
+      {"min_pct": 60, "level": 3, "label": "L3"},
+      {"min_pct": 50, "level": 2, "label": "L2"},
+      {"min_pct": 10, "level": 1, "label": "L1"}
+    ],
+    "below_lowest": {"flag": true, "value_for_calc": "block"}
+  },
+  "missing_data": "block",
+  "attempts": "regular_only",
+  "precision": {"default": {"mode": "truncate", "places": 2}, "compare_with": "unrounded"},
+  "tools": {
+    "INT1": {"behaviour": "question_wise", "pass_pct": 60, "boundary": ">=", "denominator": "by_choice"},
+    "INT2": {"behaviour": "question_wise", "pass_pct": 60, "boundary": ">=", "denominator": "by_choice"},
+    "SEE": {
+      "behaviour": "question_wise", "pass_pct": 60, "boundary": ">=", "denominator": "by_choice",
+      "whole_assessment_absent": "exclude",
+      "choice": {"G": {"best_n": 5, "best_k_parts": {"17": 2}}}
+    },
+    "QUIZ": {"behaviour": "per_student_average", "max": 5, "pass_pct": 60, "absent": "zero"},
+    "ASSIGN": {"behaviour": "per_student_average", "max": 5, "pass_pct": 60, "absent": "zero"}
+  },
+  "merge": {"INTERNAL": {"from": ["INT1", "INT2"], "method": "average"}},
+  "direct": {"INTERNAL": 0.30, "ASSIGN": 0.05, "QUIZ": 0.05, "SEE": 0.60},
+  "final": {"direct": 0.8, "indirect": 0.2, "indirect_source": "entered_value"},
+  "course": {"aggregate": "mean_ignore_blank", "target_compare": ">="}
+}
