@@ -1,0 +1,24 @@
+{% if not p.complete %}
+<div class="errorlist"><strong>Provisional.</strong> This result is not complete yet.
+  {% if p.checklist %}<ul>{% for item in p.checklist %}<li>{{ item }}</li>{% endfor %}</ul>{% endif %}
+</div>
+{% endif %}
+{% for table in p.tables %}
+<h2>{{ table.title }}</h2>
+<table>
+  <tr><th></th>{% for h in table.header %}<th>{{ h }}</th>{% endfor %}</tr>
+  {% for label, cells in table.rows %}
+  <tr><th>{{ label }}</th>
+    {% for c in cells %}
+    <td>{% if c.key %}<a href="{% url 'results:explain' p.run.pk %}?key={{ c.key|urlencode }}" title="Explain">{{ c.text }}</a>{% else %}{{ c.text }}{% endif %}{% if c.edge %} <span title="The shown value is on a band edge; the full value is lower">*</span>{% endif %}</td>
+    {% endfor %}
+  </tr>
+  {% endfor %}
+</table>
+{% endfor %}
+{% if p.indirect_label %}<p>Indirect values are {{ p.indirect_label }}.</p>{% endif %}
+<p><strong>Course attainment: {{ p.course_text }}</strong>
+  {% if p.course_unrounded %}(unrounded {{ p.course_unrounded }}){% endif %}
+  {% if p.target %}- target {{ p.target }}: {% if p.attained %}<strong>Attained</strong>{% else %}<strong>Not attained</strong>{% endif %}{% endif %}</p>
+{% if p.flags %}<h2>Flags</h2><ul>{% for f in p.flags %}<li>{{ f }}</li>{% endfor %}</ul>{% endif %}
+<p>Method {{ p.method_name }} - engine {{ p.run.engine_version }} - input {{ p.run.input_hash|slice:":12" }} - calculated {{ p.run.at }}</p>

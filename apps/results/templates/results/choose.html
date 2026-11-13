@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Choose a programme - Attainment{% endblock %}
+{% block content %}
+<h1>{{ offering.course.title }}</h1>
+<p>This course is taught to several programmes. Results are kept separate for each.</p>
+<ul>{% for p in programmes %}<li><a href="?programme={{ p.pk }}">{{ p.name }}</a></li>{% endfor %}</ul>
+{% endblock %}

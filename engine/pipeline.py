@@ -334,11 +334,15 @@ def _roll_tools(
                 continue
             statuses = {tv.status for tv, _ in per_section}
             level = _weighted_mean([(tv.level, w) for tv, w in per_section])
+            flag = None
             if "blocked" in statuses:
                 status, level = "blocked", None
+                flag = next(
+                    (tv.flag for tv, _ in per_section if tv.status == "blocked" and tv.flag), None
+                )
             else:
                 status = "ok" if level is not None else "missing"
-            rolled[tool][co] = ToolValue(tool, co, percent, level, status)
+            rolled[tool][co] = ToolValue(tool, co, percent, level, status, flag)
     return rolled
 
 

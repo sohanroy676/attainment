@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}Section result - Attainment{% endblock %}
+{% block content %}
+<h1>{{ offering.course.title }}, section {{ section.name }}</h1>
+{% if p %}{% include "results/_tables.html" %}{% else %}<p>There is no result yet.</p>{% endif %}
+{% endblock %}

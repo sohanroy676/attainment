@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Indirect values - Attainment{% endblock %}
+{% block content %}
+<h1>Indirect values: {{ offering.course.title }}</h1>
+{% if messages %}<ul class="errorlist">{% for message in messages %}<li>{{ message }}</li>{% endfor %}</ul>{% endif %}
+<p>Until surveys exist these values are <strong>entered, not measured</strong>, and every result says so. The direct-only result is always shown beside the total.</p>
+<form method="post">
+  {% csrf_token %}
+  {% for code, value in rows %}<p><label for="co-{{ code }}">{{ code }}</label><input id="co-{{ code }}" name="co:{{ code }}" value="{{ value }}"></p>{% endfor %}
+  <p><label for="note">Source note</label><input id="note" name="note"></p>
+  <button type="submit">Save</button>
+</form>
+{% endblock %}

@@ -14,5 +14,6 @@ urlpatterns = [
     path("methods/", include("apps.methodology.urls")),
     path("papers/", include("apps.assessments.urls")),
     path("marks/", include("apps.marks.urls")),
+    path("results/", include("apps.results.urls")),
     path("", home, name="home"),
 ]

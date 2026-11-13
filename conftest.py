@@ -55,9 +55,12 @@ def django_db_setup(django_db_blocker: pytest.FixtureDef) -> Iterator[None]:  # 
 @pytest.fixture(autouse=True)
 def _reset_current_college() -> Iterator[None]:
     """No test may inherit the previous test's college."""
+    from django.db import connection
+
     from apps.tenancy.context import set_current_college_id
 
     set_current_college_id(None)
+    connection._results_dirty = None  # type: ignore[attr-defined]  # pending recalculations
     yield
     set_current_college_id(None)
 
