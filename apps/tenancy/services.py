@@ -53,8 +53,8 @@ def college_context(college_id: uuid.UUID | None) -> Iterator[None]:
             set_current_college(previous)
 
 
-def create_college(name: str, code: str) -> College:
+def create_college(name: str, code: str, college_id: uuid.UUID | None = None) -> College:
     """Create a college. Its id is chosen first so the row passes its own policy."""
-    college_id = uuid.uuid4()
+    college_id = college_id or uuid.uuid4()
     with college_context(college_id):
         return College.objects.create(id=college_id, name=name, code=code)

@@ -63,7 +63,7 @@ def _reset_current_college() -> Iterator[None]:
 
 
 @pytest.fixture
-def committed_db(django_db_blocker: pytest.FixtureDef) -> Iterator[None]:  # type: ignore[type-arg]
+def committed_db(django_db_setup: None, django_db_blocker: pytest.FixtureDef) -> Iterator[None]:  # type: ignore[type-arg]
     """For tests that need real commits (connection reuse, per-request transactions).
 
     The app role cannot TRUNCATE, so the owner empties the tables afterwards.
