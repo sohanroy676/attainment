@@ -48,6 +48,9 @@ class User(TenantModel, AbstractBaseUser):
         "academics": "structure.manage",
         "roster": "roster.manage",
         "imports": "roster.manage",
+        "outcomes": "outcomes.edit",
+        "assessments": "paper.edit",
+        "methodology": "method.edit",
     }
 
     def _may_administer(self, app_label: str | None) -> bool:

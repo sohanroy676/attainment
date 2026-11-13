@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}CO-PO map - Attainment{% endblock %}
+{% block content %}
+<h1>CO-PO map</h1>
+<p>{{ definition }} for {{ programme }}</p>
+{% if messages %}<ul>{% for message in messages %}<li>{{ message }}</li>{% endfor %}</ul>{% endif %}
+<p>Blank means the CO is not mapped to that outcome. 0 means mapped with strength 0. They are different.</p>
+<form method="post">
+  {% csrf_token %}
+  <table>
+    <tr><th></th>{% for o in outcomes %}<th>{{ o.code }}</th>{% endfor %}</tr>
+    {% for row in rows %}
+    <tr><th>{{ row.co.code }}</th>
+      {% for cell in row.cells %}
+      <td><select name="{{ cell.name }}">
+        {% for value, label in choices %}<option value="{{ value }}"{% if value == cell.value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select></td>
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  </table>
+  <button type="submit">Save</button>
+</form>
+{% endblock %}

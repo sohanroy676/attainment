@@ -31,7 +31,7 @@ def _map(rows: dict[str, dict[str, int | None]]) -> dict[str, dict[str, Decimal]
     return {co: {po: D(s) for po, s in row.items() if s is not None} for co, row in rows.items()}
 
 
-# A6 ---------------------------------------------------------------------------------------------
+# A6 --------------------------------------------------------
 def test_a6_four_of_five_cos_average_four_values() -> None:
     finals = _finals(CO1="3", CO2="2", CO3="1", CO4="2", CO5="3")
     mapping = _map({f"CO{i}": {"PO1": 1} for i in range(1, 5)})  # CO5 is not mapped to PO1
@@ -103,7 +103,7 @@ def test_mapping_flows_through_a_course_run_and_the_loader() -> None:
     assert out.result.po["PO2"].value is None  # only a strength-0 mapping: blank
 
 
-# A7 ---------------------------------------------------------------------------------------------
+# A7 --------------------------------------------------------
 def test_a7_entered_indirect_is_labelled_and_direct_only_is_kept_beside_the_total() -> None:
     m = simple_method(
         {"T": {"behaviour": "question_wise", "pass_pct": 60}}, {"T": "1"},
@@ -118,7 +118,7 @@ def test_a7_entered_indirect_is_labelled_and_direct_only_is_kept_beside_the_tota
     assert r.final["CO1"].value == D("2.2")  # 0.8 x 2 + 0.2 x 3: a typed 3 lifts the total
 
 
-# A8 ---------------------------------------------------------------------------------------------
+# A8 --------------------------------------------------------
 @pytest.mark.parametrize(
     ("course_value", "flagged"),
     [("2.19", True), ("2.20", True), ("2.21", True), ("2.30", False), ("2.00", False)],
