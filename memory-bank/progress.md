@@ -9,8 +9,10 @@
 - Repo scaffold (this commit set): `.claude/` rules, commands and settings; CI and Dependabot; ADRs 0001 to 0008; memory bank; CLAUDE.md, README.md, ROADMAP.md - 2026-11-10.
 - Project documents added to `docs/` (statement, design, options, workbook analysis, prototype) - 2026-11-10.
 
+- v0.1.0 foundation and tenancy built on `feature/v0.1.0-foundation` (2026-11-13): Django skeleton and /healthz; Dockerfile, compose (PostgreSQL 16, migrate job, app, Caddy) and role script (owner and non-owner app role); College, tenant base model and manager, FORCE RLS with fail-closed policy, SET LOCAL per request transaction; accounts (login, logout, reset, 10+ character Argon2 passwords, django-axes lockout, 30 minute idle sessions, CSP/HSTS/cookie flags); scoped roles and one permission service; append-only hash-chained audit log (trigger plus revoked grants); `seed_demo`; CI with a PostgreSQL service and docker build; MIT licence; README quickstart. 49 automatic tests green locally as the app role (A2 to A9 and the M2, M4, M5 flows).
+
 ## In progress
-- Nothing yet.
+- v0.1.0 awaits: push and green CI (A1), the manual tests M1 to M5, the release gate and approval before tag `v0.1.0`. Nothing pushed yet.
 
 ## Next
-- v0.1.0 foundation and tenancy, then follow `ROADMAP.md` in order. v0.7.0 is the first end-to-end slice; v1.0.0 is the prototype.
+- Finish the v0.1.0 gate, then v0.2.0 (engine, direct attainment), then follow `ROADMAP.md` in order. v0.7.0 is the first end-to-end slice; v1.0.0 is the prototype.

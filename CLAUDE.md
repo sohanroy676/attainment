@@ -12,7 +12,7 @@ Stack: Python 3.12, uv, Django 5.2 LTS, PostgreSQL 16+ (RLS), HTMX, Pydantic 2, 
 Read on demand: `memory-bank/architecture.md` (modules, calculation flow), `memory-bank/tech-stack.md` (commands, test locations), `memory-bank/systemPatterns.md`, `ROADMAP.md` (versions, tests, reference results), `docs/solution-design.md` (full design; code layout in section 17), `docs/project-statement-final.md` (requirements), `docs/adr/` (decision records).
 
 ## Status
-Scaffold only: no application code yet. Next is v0.1.0 in `ROADMAP.md`. Folders in `architecture.md` may not exist; check first. The commands below start working in v0.1.0.
+v0.1.0 (foundation and tenancy) is built, awaiting CI and release gate. Next is v0.2.0 in `ROADMAP.md`. Folders in `architecture.md` may not exist; check first. Tests need PostgreSQL: `docker compose up -d db` and a `.env` (`uv run python scripts/init_env.py`).
 
 ## Commands
 - Install: `uv sync`

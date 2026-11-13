@@ -1,4 +1,4 @@
-# Weekly dependency update PRs. Add a "docker" ecosystem when the Dockerfile lands (v0.1.0).
+# Weekly dependency update PRs.
 # Secret scanning and Dependabot alerts are repo settings (Settings -> Code security), not files.
 
 version: 2
@@ -8,6 +8,16 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "docker-compose"
+    directory: "/"
+    schedule:
+      interval: "weekly"
 
   - package-ecosystem: "github-actions"
     directory: "/"

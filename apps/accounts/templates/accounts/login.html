@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Log in - Attainment{% endblock %}
+{% block content %}
+<h1>Log in</h1>
+<form method="post">
+  {% csrf_token %}
+  {{ form.non_field_errors }}
+  {{ form.as_p }}
+  <input type="hidden" name="next" value="{{ next }}">
+  <button type="submit">Log in</button>
+</form>
+<p><a href="{% url 'accounts:password_reset' %}">Forgot your password?</a></p>
+{% endblock %}

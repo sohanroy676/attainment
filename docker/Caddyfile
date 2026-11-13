@@ -1,0 +1,5 @@
+# SITE_ADDRESS=:80 serves plain http (local). A real domain gets an automatic certificate.
+{$SITE_ADDRESS::80} {
+	encode gzip
+	reverse_proxy app:8000
+}

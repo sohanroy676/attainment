@@ -1,9 +1,7 @@
 # CI pipeline. Runs on every push and PR to main, and manually via workflow_dispatch.
 # Mirrors CLAUDE.md: uv sync, ruff check, ruff format --check, mypy (engine only), pytest.
-#
-# The repo has no code yet. The Python steps skip themselves until pyproject.toml exists,
-# so CI stays green now and starts enforcing as soon as v0.1.0 lands. The secret scan always runs.
-# v0.1.0 also adds a PostgreSQL service container (for isolation/RLS tests) and the docker build.
+# Tests run against a real PostgreSQL 16 service as the non-owner app role (row-level security).
+# A separate job builds the Docker image.
 
 name: CI
 
@@ -25,49 +23,92 @@ jobs:
   checks:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # Throwaway credentials for the disposable CI database; not secrets.
+    env:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ci-superuser-pw
+      POSTGRES_DB: attainment
+      DB_OWNER_USER: attainment_owner
+      DB_OWNER_PASSWORD: ci-owner-pw
+      DB_APP_USER: attainment_app
+      DB_APP_PASSWORD: ci-app-pw
+      DB_HOST: 127.0.0.1
+      DB_PORT: "5432"
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-superuser-pw
+          POSTGRES_DB: attainment
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Detect Python project
-        id: detect
-        run: |
-          if [ -f pyproject.toml ]; then
-            echo "python=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "python=false" >> "$GITHUB_OUTPUT"
-            echo "No pyproject.toml yet; skipping Python checks."
-          fi
-
       - name: Install uv
-        if: steps.detect.outputs.python == 'true'
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
 
       - name: Set up Python 3.12
-        if: steps.detect.outputs.python == 'true'
         run: uv python install 3.12
 
       - name: Install dependencies
-        if: steps.detect.outputs.python == 'true'
         run: uv sync --frozen
 
       - name: Lint
-        if: steps.detect.outputs.python == 'true'
         run: uv run ruff check .
 
       - name: Format check
-        if: steps.detect.outputs.python == 'true'
         run: uv run ruff format --check .
 
       - name: Type check (engine)
-        if: steps.detect.outputs.python == 'true'
         run: uv run mypy engine
 
+      - name: Create database roles (owner and app)
+        env:
+          PGHOST: 127.0.0.1
+          PGPASSWORD: ci-superuser-pw
+        run: sh docker/db/init-roles.sh
+
+      - name: Migrations are in sync with the models
+        run: uv run python manage.py makemigrations --check --dry-run
+
+      - name: Deployment checks (production settings)
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.prod
+          ALLOW_INSECURE_HTTP: "false"
+        run: |
+          DJANGO_SECRET_KEY="$(openssl rand -hex 40)" \
+            uv run python manage.py check --deploy --fail-level WARNING
+
       - name: Tests
-        if: steps.detect.outputs.python == 'true'
         run: uv run pytest --durations=15
+
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build --tag attainment:ci .
+
+      - name: Compose file is valid
+        env:
+          DJANGO_SECRET_KEY: ci-build-only
+          POSTGRES_PASSWORD: ci
+          DB_OWNER_PASSWORD: ci
+          DB_APP_PASSWORD: ci
+        run: docker compose config --quiet
 
   secrets:
     runs-on: ubuntu-latest
