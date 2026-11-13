@@ -1,0 +1,29 @@
+{
+  "schema": "attainment-method/1",
+  "name": "Synthetic College B (config-only example, not a real college)",
+  "levels": {
+    "bands": [
+      {"min_pct": 70, "level": 3, "label": "High"},
+      {"min_pct": 50, "level": 2, "label": "Medium"},
+      {"min_pct": 30, "level": 1, "label": "Low"}
+    ],
+    "below_lowest": {"flag": true, "value_for_calc": "zero"}
+  },
+  "missing_data": "renormalise",
+  "precision": {"default": {"mode": "round", "places": 1}, "compare_with": "displayed"},
+  "tools": {
+    "MID": {
+      "behaviour": "question_wise", "pass_pct": 50, "boundary": ">",
+      "denominator": "sat", "aggregate": "marks_weighted"
+    },
+    "END": {
+      "behaviour": "question_wise", "pass_pct": 40, "boundary": ">=",
+      "aggregate": "student_level", "student_level_pct": 50
+    },
+    "PROJECT": {"behaviour": "single_total", "max": 20, "pass_pct": 50}
+  },
+  "direct": {"MID": 0.25, "END": 0.50, "PROJECT": 0.25},
+  "final": {"direct": 0.9, "indirect": 0.1},
+  "rollup": {"stage": "level", "method": "weighted_by_students"},
+  "targets": {"near_target_margin": 0.05}
+}

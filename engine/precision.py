@@ -7,7 +7,7 @@ from zero (2.85). The engine never relies on the default: `truncate` or `round` 
 from decimal import ROUND_DOWN, ROUND_HALF_EVEN, ROUND_HALF_UP, Context, Decimal
 from typing import Literal
 
-Mode = Literal["truncate", "round"]
+Mode = Literal["truncate", "round", "none"]
 
 # 40 significant digits for every calculation. Intermediate results are never rounded to a
 # display precision; the rounding mode below only matters beyond the 40th digit.
@@ -19,7 +19,12 @@ ONE = Decimal(1)
 
 
 def quantize(value: Decimal, places: int, mode: Mode) -> Decimal:
-    """Cut or round `value` to `places` decimals. `round` is half away from zero (Excel)."""
+    """Cut or round `value` to `places` decimals. `round` is half away from zero (Excel).
+
+    `none` keeps every digit.
+    """
+    if mode == "none":
+        return value
     exponent = ONE.scaleb(-places, context=CALCULATION_CONTEXT)
     rounding = ROUND_DOWN if mode == "truncate" else ROUND_HALF_UP
     return value.quantize(exponent, rounding=rounding, context=CALCULATION_CONTEXT)

@@ -22,6 +22,7 @@ class PartResult:
     denominator: int
     percent: Decimal | None
     overridden: bool
+    max: Decimal
 
 
 def passes(mark: Decimal, threshold: Decimal, boundary: str) -> bool:
@@ -52,7 +53,15 @@ def evaluate_parts(
         percent = Decimal(passed) * HUNDRED / Decimal(den) if den > 0 else None
         results.append(
             PartResult(
-                part.id, part.co, threshold, passed, len(marks), den, percent, override is not None
+                part.id,
+                part.co,
+                threshold,
+                passed,
+                len(marks),
+                den,
+                percent,
+                override is not None,
+                part.max,
             )
         )
         rate = f"{len(marks)} of {len(sat)} attempted" if len(sat) else "no students"
@@ -89,21 +98,77 @@ def _attempted_marks(cells: Cells, students: set[str], part_id: str) -> list[Dec
 
 
 def aggregate_to_co(
-    tool: str, results: list[PartResult], cos: tuple[str, ...], trace: Trace
+    tool: str,
+    results: list[PartResult],
+    cos: tuple[str, ...],
+    trace: Trace,
+    mode: str = "mean_of_question_pct",
 ) -> dict[str, Decimal | None]:
-    """Mean of the part percentages tagged to each CO. None when no part gives a value."""
-    by_co: dict[str, list[Decimal]] = defaultdict(list)
+    """Part percentages to a CO percentage. None when no part gives a value.
+
+    mean_of_question_pct: plain mean of the parts tagged to the CO (default).
+    marks_weighted:       mean weighted by each part's maximum mark.
+    """
+    by_co: dict[str, list[PartResult]] = defaultdict(list)
     for result in results:
         if result.co is not None and result.percent is not None:
-            by_co[result.co].append(result.percent)
+            by_co[result.co].append(result)
     out: dict[str, Decimal | None] = {}
     for co in cos:
-        values = by_co.get(co)
-        out[co] = sum(values, Decimal(0)) / Decimal(len(values)) if values else None
+        parts = by_co.get(co, [])
+        if not parts:
+            out[co] = None
+        elif mode == "marks_weighted":
+            total = sum((p.max for p in parts), Decimal(0))
+            out[co] = sum(((p.percent or Decimal(0)) * p.max for p in parts), Decimal(0)) / total
+        else:
+            out[co] = sum((p.percent or Decimal(0) for p in parts), Decimal(0)) / Decimal(
+                len(parts)
+            )
         trace.add(
             "AggregateToCO",
             f"{tool}/{co}",
-            f"mean of {len(values or [])} part percentages = {out[co]}",
-            parts=len(values or []),
+            f"{'marks-weighted mean' if mode == 'marks_weighted' else 'mean'} of "
+            f"{len(parts)} part percentages = {out[co]}",
+            parts=len(parts),
+        )
+    return out
+
+
+def student_level_percent(
+    assessment: AssessmentInput,
+    cells: Cells,
+    config: QuestionWiseTool,
+    cos: tuple[str, ...],
+    trace: Trace,
+) -> dict[str, Decimal | None]:
+    """A student passes a CO when their marks on the CO's parts they answered reach X% of the
+    maximum of those parts. The CO percentage is the share of such students who pass."""
+    tool = assessment.tool
+    sat = set(sat_students(assessment, cells, config.whole_assessment_absent))
+    needed = config.student_level_pct if config.student_level_pct is not None else config.pass_pct
+    out: dict[str, Decimal | None] = {}
+    for co in cos:
+        co_parts = [p for p in assessment.parts if p.co == co]
+        passed = counted = 0
+        for student in sorted(sat):
+            earned = available = Decimal(0)
+            for part in co_parts:
+                cell = cells[student].get(part.id)
+                if cell is not None and cell.state is State.ENTERED and cell.value is not None:
+                    earned += cell.value
+                    available += part.max
+            if available == 0:
+                continue
+            counted += 1
+            if passes(earned, available * needed / HUNDRED, config.boundary):
+                passed += 1
+        out[co] = Decimal(passed) * HUNDRED / Decimal(counted) if counted else None
+        trace.add(
+            "AggregateToCO",
+            f"{tool}/{co}",
+            f"student level: {passed} of {counted} students reach {needed}% of their CO marks",
+            passed=passed,
+            counted=counted,
         )
     return out
