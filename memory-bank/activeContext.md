@@ -1,7 +1,7 @@
 # Active Context
 
 ## Current focus
-v0.1.0 (foundation and tenancy) is implemented on branch `feature/v0.1.0-foundation`, not pushed. Next: push with approval, watch CI, run M1 to M5, release gate, tag. Then v0.2.0 (engine) per `memory-bank/next_session_prompt.md`.
+v0.1.0 is tagged. v0.2.0 (engine) is built on `feature/v0.2.0-engine` and waits for the DS-A fixture so the golden tests can run. Next: owner builds DS-A, golden tests pass, M1 to M4, PR and tag; then v0.3.0 per `memory-bank/next_session_prompt.md`.
 
 ## Decisions (settled, do not re-ask)
 - Stack: Python 3.12, uv, Django 5.2 LTS, PostgreSQL 16+, HTMX; pure `engine/` package with `Decimal` (ADRs 0002 to 0004).
@@ -37,10 +37,18 @@ v0.1.0 (foundation and tenancy) is implemented on branch `feature/v0.1.0-foundat
 - Scope containment (department covers its sections) waits for the academic structure in v0.4.0.
 - `.env.example` is blocked for the Read/Write tools by a permission rule; edit it by hand if needed.
 
+## v0.2.0 engine design choices (settled)
+- Method config uses objects for bands (`{"min_pct","level","label"}`), not the design's abbreviated arrays; choice rules are keyed by the paper's `choice_group` id: `"choice": {"G": {"best_n": 5, "best_k_parts": {"17": 2}}}`. A part with a `choice_group` but no rule is still a choice question for the `by_choice` denominator (Internal-II).
+- Stopped-for-review (`blocked`) values never reach later steps as numbers: direct and final become `blocked`, the run is provisional (`complete=False`), and course attainment is computed from the COs that do have a value.
+- A student absent for the whole assessment: marks typed for them never count. `exclude` removes them from denominators, `count_as_fail` keeps them in with no passes.
+- Engine arithmetic runs at 40 digits in an explicit `Context`; tests compute expected values at the same precision (`engine/tests/conftest.py`).
+- Golden data: `engine/tests/golden/ds_a/course.json` built by `scripts/build_ds_a.py`; R2 is R1 plus overrides of 2 for every 3.5-mark Internal-II part, added in the test.
+- A3 (per-question pass counts equal the workbook's own) and A4/A5 level checks on real data are only possible with the real workbook; synthetic analogues exist.
+
 ## Environment notes
 - Write files as UTF-8, no BOM, LF endings.
 - `gh` auth may be unavailable in cloud sessions; check CI with the GitHub MCP tools.
 - Real mentor workbooks only in gitignored `data/private/`; committed fixtures are anonymised.
 
 ## Next step
-With approval, push the branch, watch CI, run M1 to M5, tag v0.1.0. Then start v0.2.0.
+Owner builds DS-A; run `uv run pytest -m golden`. Then M1 to M4, push `feature/v0.2.0-engine`, PR, tag after the release gate.
