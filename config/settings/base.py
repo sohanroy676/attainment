@@ -50,6 +50,9 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    # Opens the request transaction and sets the current college (SET LOCAL). It must run
+    # before AuthenticationMiddleware, because loading the user is already a tenant query.
+    "apps.tenancy.middleware.TenantMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",

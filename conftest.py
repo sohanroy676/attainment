@@ -50,3 +50,46 @@ def django_db_setup(django_db_blocker: pytest.FixtureDef) -> Iterator[None]:  # 
         connections.close_all()
     with _superuser_connection("postgres") as conn:
         conn.execute(sql.SQL("DROP DATABASE IF EXISTS {} WITH (FORCE)").format(name))
+
+
+@pytest.fixture(autouse=True)
+def _reset_current_college() -> Iterator[None]:
+    """No test may inherit the previous test's college."""
+    from apps.tenancy.context import set_current_college_id
+
+    set_current_college_id(None)
+    yield
+    set_current_college_id(None)
+
+
+@pytest.fixture
+def committed_db(django_db_blocker: pytest.FixtureDef) -> Iterator[None]:  # type: ignore[type-arg]
+    """For tests that need real commits (connection reuse, per-request transactions).
+
+    The app role cannot TRUNCATE, so the owner empties the tables afterwards.
+    """
+    from django.db import connections
+
+    with django_db_blocker.unblock():
+        yield
+        connections.close_all()
+        owner = settings.DATABASES["owner"]
+        with psycopg.connect(
+            host=owner["HOST"],
+            port=owner["PORT"],
+            user=owner["USER"],
+            password=owner["PASSWORD"],
+            dbname=owner["NAME"],
+            autocommit=True,
+        ) as conn:
+            tables = [
+                row[0]
+                for row in conn.execute(
+                    "SELECT tablename FROM pg_tables WHERE schemaname = 'public' "
+                    "AND tablename NOT IN ('django_migrations', 'django_content_type', "
+                    "'auth_permission')"
+                )
+            ]
+            if tables:
+                names = sql.SQL(", ").join(sql.Identifier(t) for t in tables)
+                conn.execute(sql.SQL("TRUNCATE {} CASCADE").format(names))
