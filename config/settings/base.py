@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "axes",
     "csp",
     "apps.tenancy",
     "apps.accounts",
@@ -55,6 +56,8 @@ MIDDLEWARE = [
     "apps.tenancy.middleware.TenantMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "axes.middleware.AxesMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "csp.middleware.CSPMiddleware",
@@ -104,6 +107,11 @@ DATABASES = {
 }
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+AUTH_USER_MODEL = "accounts.User"
+AUTHENTICATION_BACKENDS = [
+    "axes.backends.AxesStandaloneBackend",
+    "apps.accounts.backends.TenantAuthBackend",
+]
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.Argon2PasswordHasher"]
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
@@ -114,6 +122,21 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
+LOGIN_URL = "accounts:login"
+LOGIN_REDIRECT_URL = "home"
+LOGOUT_REDIRECT_URL = "accounts:login"
+PASSWORD_RESET_TIMEOUT = 3600  # seconds
+
+# Lockout after repeated failures (django-axes).
+AXES_FAILURE_LIMIT = 5
+AXES_COOLOFF_TIME = 0.25  # hours
+# Per username only. Behind the Caddy proxy every client shares one address until forwarded
+# headers are configured, so locking by IP would let one attacker lock out a whole college.
+AXES_LOCKOUT_PARAMETERS = ["username"]
+SILENCED_SYSTEM_CHECKS = ["axes.W006"]
+AXES_RESET_ON_SUCCESS = True
+AXES_LOCKOUT_TEMPLATE = "accounts/locked.html"
+
 # Sessions: 30 minutes idle (the expiry slides on every request).
 SESSION_COOKIE_AGE = 30 * 60
 SESSION_SAVE_EVERY_REQUEST = True

@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Welcome, {{ user.full_name|default:user.username }}</h1>
+<p>You are signed in. The working screens arrive in later versions.</p>
+{% endblock %}
