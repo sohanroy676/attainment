@@ -41,3 +41,57 @@ class User(TenantModel, AbstractBaseUser):
 
     def __str__(self) -> str:
         return self.username
+
+
+class Role(models.TextChoices):
+    COLLEGE_ADMIN = "college_admin", "College admin"
+    IQAC = "iqac", "IQAC"
+    HOD = "hod", "Head of department"
+    COORDINATOR = "coordinator", "Course coordinator"
+    LECTURER = "lecturer", "Lecturer"
+    EXAM_BRANCH = "exam_branch", "Exam branch"
+    PRINCIPAL = "principal", "Principal"
+    AUDITOR = "auditor", "Auditor"
+
+
+class ScopeType(models.TextChoices):
+    COLLEGE = "college", "College"
+    DEPARTMENT = "department", "Department"
+    PROGRAMME = "programme", "Programme"
+    OFFERING = "offering", "Course offering"
+    SECTION = "section", "Section"
+
+
+class RoleAssignment(TenantModel):
+    """A role held by a user over one scope. A user may hold several (design section 9).
+
+    scope_id points at a department, programme, offering or section. Those tables arrive in
+    later versions, so it is a plain id here; it is empty exactly when the scope is the college.
+    """
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="role_assignments")
+    role = models.CharField(max_length=20, choices=Role.choices)
+    scope_type = models.CharField(
+        max_length=20, choices=ScopeType.choices, default=ScopeType.COLLEGE
+    )
+    scope_id = models.UUIDField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(scope_type="college", scope_id__isnull=True)
+                    | (~models.Q(scope_type="college") & models.Q(scope_id__isnull=False))
+                ),
+                name="role_scope_id_matches_scope_type",
+            ),
+            models.UniqueConstraint(
+                fields=["user", "role", "scope_type", "scope_id"],
+                nulls_distinct=False,
+                name="role_assignment_unique",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.user_id} {self.role} @ {self.scope_type}"

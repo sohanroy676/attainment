@@ -16,6 +16,7 @@ from django.utils.http import urlsafe_base64_decode
 from apps.tenancy.services import set_auth_identity, set_current_college
 
 from .forms import LoginForm, TenantPasswordResetForm
+from .services import roles_of
 
 
 class TenantLoginView(LoginView):
@@ -51,4 +52,4 @@ class TenantPasswordResetConfirmView(PasswordResetConfirmView):
 
 @login_required
 def home(request: HttpRequest) -> HttpResponse:
-    return render(request, "accounts/home.html")
+    return render(request, "accounts/home.html", {"roles": roles_of(request.user)})

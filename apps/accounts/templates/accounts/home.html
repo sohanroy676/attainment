@@ -2,4 +2,12 @@
 {% block content %}
 <h1>Welcome, {{ user.full_name|default:user.username }}</h1>
 <p>You are signed in. The working screens arrive in later versions.</p>
+<h2>Your roles</h2>
+<ul>
+  {% for assignment in roles %}
+  <li>{{ assignment.get_role_display }} ({{ assignment.get_scope_type_display }})</li>
+  {% empty %}
+  <li>No role assigned yet. Ask your college administrator.</li>
+  {% endfor %}
+</ul>
 {% endblock %}
