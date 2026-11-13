@@ -2,6 +2,11 @@
 
 ## Unreleased (built, not yet released; manual tests and golden data pending)
 
+### v0.5.0 - outcomes, question papers and methods
+- Programme outcomes, versioned course definitions and COs, CO-PO grid (blank, 0, 1, 2, 3; all-or-nothing save naming bad cells), targets per offering and per outcome and batch; grid screen; CO and map import from CSV or Excel.
+- Question papers (questions, parts, CO tags, choice groups with best N and best K parts), plain-word validation, pass-mark overrides that need a reason and IQAC approval before the engine sees them, copy to a new offering, paper page.
+- Methods and versions (draft, active, retired) stored as the engine's JSON; the database refuses to change or delete a published version; assignment with inheritance and locks; Vasavi theory and lab templates; validated editor screens.
+
 ### v0.4.0 - academic structure and roster
 - University, department, programme, batch, year, term, courses with several codes, course groups, offerings, sections, faculty assignment; setup through Django admin, audited.
 - Students with scoped identifiers and history, batch and section memberships, enrolments; withdrawn and not-enrolled kept apart.

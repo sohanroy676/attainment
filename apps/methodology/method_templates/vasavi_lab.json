@@ -1,0 +1,19 @@
+{
+  "schema": "attainment-method/1",
+  "name": "Vasavi OBE (lab)",
+  "levels": {
+    "bands": [
+      {"min_pct": 60, "level": 3, "label": "L3"},
+      {"min_pct": 50, "level": 2, "label": "L2"},
+      {"min_pct": 10, "level": 1, "label": "L1"}
+    ],
+    "below_lowest": {"flag": true, "value_for_calc": "block"}
+  },
+  "missing_data": "block",
+  "precision": {"default": {"mode": "truncate", "places": 2}, "compare_with": "unrounded"},
+  "tools": {
+    "LAB": {"behaviour": "single_total", "max": 30, "pass_mark": 18, "boundary": ">=", "absent": "exclude"}
+  },
+  "direct": {"LAB": 1},
+  "final": {"direct": 1, "indirect": 0}
+}

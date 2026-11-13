@@ -11,5 +11,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("imports/", include("apps.imports.urls")),
     path("outcomes/", include("apps.outcomes.urls")),
+    path("methods/", include("apps.methodology.urls")),
+    path("papers/", include("apps.assessments.urls")),
     path("", home, name="home"),
 ]

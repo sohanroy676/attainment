@@ -142,7 +142,7 @@ def test_a_co_of_another_course_is_refused(db: None) -> None:
             )
 
 
-# A4 -------------------------------------------------------------------------------------------
+# A4 --------------------------------------------------------
 def _paper_with_part(college):  # type: ignore[no-untyped-def]
     s = _course(college)
     iqac = make_user(college, "a.iqac")
@@ -229,7 +229,7 @@ def test_a4_rejected_or_changed_overrides_are_not_used(db: None) -> None:
         assert services.approved_overrides(s.offering) == {}  # a new proposal needs approval again
 
 
-# copying and importing ---------------------------------------------------------------------------
+# copying and importing -------------------------------------
 def test_copy_a_paper_to_next_years_offering_without_the_overrides(db: None) -> None:
     college = make_college("a")
     s, paper, part, iqac, coordinator, _ = _paper_with_part(college)
@@ -334,3 +334,58 @@ def test_a8_the_deep_learning_papers_import_with_14_12_and_25_parts(db: None) ->
                 f"{float(p['max']):.2f}" for p in parts
             ]
             assert services.validate_paper(paper) == []
+
+
+# the paper page ------------------------------------------------------------------------------
+def _client(username: str):  # type: ignore[no-untyped-def]
+    from django.test import Client
+
+    from apps.accounts.tests.helpers import PASSWORD
+
+    client = Client()
+    assert (
+        client.post("/accounts/login/", {"username": username, "password": PASSWORD}).status_code
+        == 302
+    )
+    return client
+
+
+def test_m5_override_without_a_reason_is_refused_and_with_one_waits_for_iqac(
+    committed_db: None,
+) -> None:
+    college = make_college("a")
+    s, paper, part, iqac, coordinator, lecturer = _paper_with_part(college)
+    url = f"/papers/{paper.pk}/"
+    coord = _client("a.coordinator")
+    page = coord.get(url).content.decode()
+    assert "The paper is consistent" in page and "Propose" in page and "Approve" not in page
+    refused = coord.post(
+        url,
+        {"action": "propose", "part": str(part.pk), "pass_mark": "2", "reason": ""},
+        follow=True,
+    )
+    assert b"needs a reason" in refused.content
+    done = coord.post(
+        url,
+        {"action": "propose", "part": str(part.pk), "pass_mark": "2", "reason": "college practice"},
+        follow=True,
+    )
+    assert b"Waiting for IQAC approval" in done.content
+    assert b"college practice" in coord.get(url).content
+    assert coord.post(url, {"action": "approve", "part": str(part.pk)}).status_code == 403
+    iqac_page = _client("a.iqac").get(url).content
+    assert b"Approve" in iqac_page and b"Propose" not in iqac_page
+    _client("a.iqac").post(url, {"action": "approve", "part": str(part.pk)})
+    with college_context(college.id):
+        assert len(services.approved_overrides(s.offering)) == 1
+
+
+def test_the_paper_page_refuses_others_and_other_colleges(committed_db: None) -> None:
+    college, other = make_college("a"), make_college("b")
+    s, paper, *_ = _paper_with_part(college)
+    make_user(college, "a.nobody")
+    assert _client("a.nobody").get(f"/papers/{paper.pk}/").status_code == 403
+    outsider = make_user(other, "b.iqac")
+    with college_context(other.id):
+        assign_role(outsider, Role.IQAC)
+    assert _client("b.iqac").get(f"/papers/{paper.pk}/").status_code == 404

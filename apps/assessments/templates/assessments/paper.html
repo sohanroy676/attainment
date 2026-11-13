@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}{{ paper.name }} - Attainment{% endblock %}
+{% block content %}
+<h1>{{ paper.name }}</h1>
+<p>{{ paper.offering }} - {{ paper.get_behaviour_display }}{% if paper.max_total %}, total {{ paper.max_total }}{% endif %}</p>
+{% if messages %}<ul class="errorlist">{% for message in messages %}<li>{{ message }}</li>{% endfor %}</ul>{% endif %}
+{% if problems %}<h2>Problems with this paper</h2><ul class="errorlist">{% for p in problems %}<li>{{ p }}</li>{% endfor %}</ul>{% else %}<p>The paper is consistent.</p>{% endif %}
+<table>
+  <tr><th>Part</th><th>Question</th><th>Max</th><th>CO</th><th>Choice group</th><th>Pass-mark override</th></tr>
+  {% for part in parts %}
+  <tr>
+    <td>{{ part.code }}</td><td>{{ part.question.number }}</td><td>{{ part.max }}</td>
+    <td>{{ part.co.code|default:"all COs" }}</td><td>{{ part.question.choice_group.code|default:"-" }}</td>
+    <td>{% if part.override_status != "none" %}{{ part.override_pass_mark }} ({{ part.get_override_status_display }}): {{ part.override_reason }}{% else %}-{% endif %}
+      {% if can_decide and part.override_status == "pending" %}
+      <form method="post" class="inline">{% csrf_token %}<input type="hidden" name="part" value="{{ part.pk }}">
+        <button name="action" value="approve">Approve</button> <button name="action" value="reject">Reject</button></form>
+      {% endif %}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% if can_edit %}
+<h2>Propose a pass mark for one part</h2>
+<form method="post">
+  {% csrf_token %}
+  <p><label for="part">Part</label><select id="part" name="part">{% for part in parts %}<option value="{{ part.pk }}">{{ part.code }} (max {{ part.max }})</option>{% endfor %}</select></p>
+  <p><label for="pass_mark">Pass mark</label><input id="pass_mark" name="pass_mark"></p>
+  <p><label for="reason">Reason (required)</label><input id="reason" name="reason"></p>
+  <button name="action" value="propose" type="submit">Propose</button>
+</form>
+{% endif %}
+{% endblock %}
