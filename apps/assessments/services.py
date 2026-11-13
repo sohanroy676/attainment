@@ -166,10 +166,17 @@ def validate_paper(assessment: Assessment) -> list[str]:
 
 
 # overrides -------------------------------------------------
+def _refuse_when_locked(part: QuestionPart) -> None:
+    """Overrides are allowed only before approval (design 8.8): after that, reopen first."""
+    if part.assessment.status in (Assessment.Status.APPROVED, Assessment.Status.LOCKED):
+        raise ValidationError("The result is approved: reopen it before changing an override.")
+
+
 def set_override(
     part: QuestionPart, pass_mark: Decimal | str, reason: str, actor: User
 ) -> QuestionPart:
     """Propose a pass mark for one part. It is not used until IQAC approves it."""
+    _refuse_when_locked(part)
     if not reason.strip():
         raise ValidationError("An override needs a reason.")
     pass_mark = Decimal(pass_mark)
@@ -193,6 +200,7 @@ def decide_override(part: QuestionPart, approver: User, approve: bool) -> Questi
     """IQAC (or anyone with override.apply) approves or rejects a proposed override."""
     if not has_permission(approver, "override.apply"):
         raise PermissionDenied("Only IQAC or the HoD can approve a pass-mark override.")
+    _refuse_when_locked(part)
     if part.override_status != QuestionPart.OverrideStatus.PENDING:
         raise ValidationError("There is no override waiting for a decision.")
     before = audit.snapshot(part)
@@ -305,3 +313,30 @@ def import_engine_paper(
         offering, tool, name, behaviour, [by_question[n] for n in order],
         groups=choice_rules, actor=actor,
     )  # fmt: skip
+
+
+# approval locks ----------------------------------------------
+def lock_offering(offering: CourseOffering, actor: User) -> int:
+    """Lock every paper of the offering at approval. Returns how many changed."""
+    return _set_offering_status(offering, Assessment.Status.APPROVED, actor, "result approved")
+
+
+def unlock_offering(offering: CourseOffering, actor: User, reason: str) -> int:
+    """Open every locked paper again after a reopen, with the reason in the audit log."""
+    return _set_offering_status(offering, Assessment.Status.OPEN, actor, reason)
+
+
+def _set_offering_status(offering: CourseOffering, status: str, actor: User, reason: str) -> int:
+    changed = 0
+    for assessment in offering.assessments.all():
+        if assessment.status == status:
+            continue
+        before = audit.snapshot(assessment)
+        assessment.status = status
+        assessment.save(update_fields=["status", "updated_at"])
+        audit.record_model(
+            "updated", assessment, actor_id=actor.pk, before=before,
+            after=audit.snapshot(assessment), reason=reason,
+        )  # fmt: skip
+        changed += 1
+    return changed

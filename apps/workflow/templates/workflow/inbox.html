@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}My tasks - Attainment{% endblock %}
+{% block content %}
+<h1>My tasks</h1>
+{% if messages %}<ul>{% for message in messages %}<li>{{ message }}</li>{% endfor %}</ul>{% endif %}
+<ul>
+  {% for t in tasks %}
+  <li><a href="{% url 'workflow:stage' t.offering_id t.programme_id %}">{{ t.label }}</a></li>
+  {% empty %}
+  <li>Nothing is waiting for you.</li>
+  {% endfor %}
+</ul>
+{% endblock %}

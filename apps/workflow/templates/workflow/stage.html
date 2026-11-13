@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Approval - Attainment{% endblock %}
+{% block content %}
+<h1>{{ offering.course.title }}: approval</h1>
+<p>{{ offering.term }} - {{ programme.name }}
+  | <a href="{% url 'results:course' offering.pk %}?programme={{ programme.pk }}">Result page</a></p>
+{% if messages %}<ul>{% for message in messages %}<li>{{ message }}</li>{% endfor %}</ul>{% endif %}
+{% if differs %}
+<p><strong>Differs from signed:</strong> the current result no longer matches the signed version
+  (signed {{ signed_run.at|date:"Y-m-d H:i" }}).</p>
+{% endif %}
+<p>Result status: <strong>{% if stage %}{{ stage.get_status_display }} (cycle {{ stage.cycle }}){% else %}Not yet reviewed{% endif %}</strong></p>
+
+<h2>Marks by section</h2>
+<table>
+  <thead><tr><th>Assessment</th>{% for s in sections %}<th>Section {{ s.name }}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for row in grid %}
+    <tr><td>{{ row.assessment.name }}</td>
+    {% for cell in row.cells %}
+      <td>{{ cell.status }}
+        {% if cell.status == 'draft' or cell.status == 'returned' %}
+        <form method="post" action="{% url 'workflow:section_action' cell.section.pk row.assessment.pk 'submit' %}">{% csrf_token %}
+          <button type="submit">Submit</button></form>
+        {% endif %}
+        {% if cell.status == 'submitted' %}
+        <form method="post" action="{% url 'workflow:section_action' cell.section.pk row.assessment.pk 'accept' %}">{% csrf_token %}
+          <button type="submit">Accept</button></form>
+        <form method="post" action="{% url 'workflow:section_action' cell.section.pk row.assessment.pk 'return' %}">{% csrf_token %}
+          <input name="reason" placeholder="Reason" required><button type="submit">Return</button></form>
+        {% endif %}
+      </td>
+    {% endfor %}</tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<h2>Result</h2>
+{% if not stage or stage.status == 'reopened' %}
+  {% if problems %}
+  <ul>{% for p in problems %}<li>{{ p }}</li>{% endfor %}</ul>
+  {% elif may.review %}
+  <form method="post" action="{% url 'workflow:stage_action' offering.pk programme.pk 'review' %}">{% csrf_token %}
+    <button type="submit">Mark reviewed</button></form>
+  {% endif %}
+{% endif %}
+{% if stage.status == 'reviewed' and may.approve %}
+<form method="post" action="{% url 'workflow:stage_action' offering.pk programme.pk 'approve' %}">{% csrf_token %}
+  <button type="submit">Approve and lock marks</button></form>
+{% endif %}
+{% if stage.status == 'approved' and may.sign %}
+<form method="post" action="{% url 'workflow:stage_action' offering.pk programme.pk 'sign' %}">{% csrf_token %}
+  <button type="submit">Sign</button></form>
+{% endif %}
+{% if stage.status == 'approved' or stage.status == 'signed' %}{% if may.reopen %}
+<form method="post" action="{% url 'workflow:stage_action' offering.pk programme.pk 'reopen' %}">{% csrf_token %}
+  <input name="reason" placeholder="Reason for reopening" required><button type="submit">Reopen</button></form>
+{% endif %}{% endif %}
+
+<h2>Approvals and signatures</h2>
+<ul>
+  {% for sig in signatures %}<li>Cycle {{ sig.cycle }}: {{ sig.get_kind_display }} by {{ sig.signer_name }} ({{ sig.role }}) at {{ sig.at|date:"Y-m-d H:i" }}, hash {{ sig.content_hash|slice:":12" }}</li>
+  {% empty %}<li>None yet.</li>{% endfor %}
+</ul>
+{% if reopenings %}
+<h2>Reopened</h2>
+<ul>{% for r in reopenings %}<li>{{ r.at|date:"Y-m-d H:i" }}: {{ r.reason }}</li>{% endfor %}</ul>
+{% endif %}
+{% endblock %}

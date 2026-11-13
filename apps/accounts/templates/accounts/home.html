@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Welcome, {{ user.full_name|default:user.username }}</h1>
-<p>You are signed in. The working screens arrive in later versions.</p>
+<p>You are signed in. <a href="{% url 'workflow:inbox' %}">My tasks</a> | <a href="{% url 'workflow:audit' %}">Audit log</a> (needs the audit right)</p>
 <h2>Your roles</h2>
 <ul>
   {% for assignment in roles %}

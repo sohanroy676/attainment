@@ -4,6 +4,8 @@
 <h1>{{ offering.course.title }}</h1>
 <p>{{ offering.term }} - {{ programme.name }}</p>
 {% if messages %}<ul>{% for message in messages %}<li>{{ message }}</li>{% endfor %}</ul>{% endif %}
+{% if differs %}<p><strong>Differs from signed:</strong> this result no longer matches the signed version.</p>{% endif %}
+<p><a href="{% url 'workflow:stage' offering.pk programme.pk %}">Approval status</a></p>
 {% if p %}
 {% include "results/_tables.html" %}
 <p>Sections:

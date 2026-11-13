@@ -60,6 +60,7 @@ def course_page(request: HttpRequest, offering_id: uuid.UUID) -> HttpResponse:
             "p": shown,
             "sections": sections,
             "can_indirect": has_permission(request.user, "indirect.enter"),
+            "differs": services.differs_from_signed(offering, programme),
         },
     )
 
