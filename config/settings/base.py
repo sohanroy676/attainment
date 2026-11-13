@@ -133,7 +133,8 @@ AXES_COOLOFF_TIME = 0.25  # hours
 # Per username only. Behind the Caddy proxy every client shares one address until forwarded
 # headers are configured, so locking by IP would let one attacker lock out a whole college.
 AXES_LOCKOUT_PARAMETERS = ["username"]
-SILENCED_SYSTEM_CHECKS = ["axes.W006"]
+# W021 (HSTS preload) is a per-deployment decision: preload is hard to undo.
+SILENCED_SYSTEM_CHECKS = ["axes.W006", "security.W021"]
 AXES_RESET_ON_SUCCESS = True
 AXES_LOCKOUT_TEMPLATE = "accounts/locked.html"
 

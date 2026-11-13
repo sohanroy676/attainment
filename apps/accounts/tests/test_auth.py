@@ -2,6 +2,7 @@
 
 import importlib
 import re
+import sys
 import uuid
 
 import pytest
@@ -230,11 +231,11 @@ def test_a9_production_settings_demand_secure_cookies_and_hsts(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     import config.settings.base as base
-    import config.settings.prod as prod
 
     def load() -> object:
         importlib.reload(base)
-        return importlib.reload(prod)
+        sys.modules.pop("config.settings.prod", None)
+        return importlib.import_module("config.settings.prod")
 
     monkeypatch.setenv("DJANGO_SECRET_KEY", "x" * 60)
     monkeypatch.setenv("ALLOW_INSECURE_HTTP", "false")
@@ -247,4 +248,5 @@ def test_a9_production_settings_demand_secure_cookies_and_hsts(
     with pytest.raises(ImproperlyConfigured):
         load()
     monkeypatch.undo()
-    load()
+    sys.modules.pop("config.settings.prod", None)
+    importlib.reload(base)
