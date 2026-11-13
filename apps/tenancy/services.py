@@ -15,6 +15,8 @@ from django.db import connection, transaction
 from .context import get_current_college_id, set_current_college_id
 from .models import College
 
+SESSION_KEY = "college_id"  # where login stores the user's college in the session
+
 
 def _set_local(name: str, value: str) -> None:
     if not connection.in_atomic_block:

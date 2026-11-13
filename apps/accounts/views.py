@@ -13,6 +13,7 @@ from django.shortcuts import render
 from django.urls import reverse_lazy
 from django.utils.http import urlsafe_base64_decode
 
+from apps.audit import services as audit
 from apps.tenancy.services import set_auth_identity, set_current_college
 
 from .forms import LoginForm, TenantPasswordResetForm
@@ -48,6 +49,17 @@ class TenantPasswordResetConfirmView(PasswordResetConfirmView):
             # The token is checked next; saving the new password needs the user's college.
             set_current_college(user.college_id)
         return user
+
+    def form_valid(self, form: Any) -> HttpResponse:
+        response = super().form_valid(form)
+        audit.record(
+            "auth.password_reset",
+            "user",
+            entity_id=form.user.pk,
+            actor_id=form.user.pk,
+            ip=audit.client_ip(self.request),
+        )
+        return response
 
 
 @login_required

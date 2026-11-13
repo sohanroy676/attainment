@@ -13,6 +13,8 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import PermissionDenied
 from django.http import HttpRequest, HttpResponse
 
+from apps.audit import services as audit
+
 from .models import Role, RoleAssignment, ScopeType, User
 from .permissions import PERMISSIONS
 
@@ -80,17 +82,46 @@ def create_user(username: str, password: str, email: str = "", full_name: str = 
     return User.objects.create_user(username, password, email=email, full_name=full_name)
 
 
+def _role_snapshot(assignment: RoleAssignment) -> dict[str, object]:
+    return {
+        "user_id": assignment.user_id,
+        "role": assignment.role,
+        "scope_type": assignment.scope_type,
+        "scope_id": assignment.scope_id,
+    }
+
+
 def assign_role(
     user: User,
     role: Role,
     scope_type: ScopeType = ScopeType.COLLEGE,
     scope_id: uuid.UUID | None = None,
+    actor: User | None = None,
+    reason: str = "",
 ) -> RoleAssignment:
-    assignment, _ = RoleAssignment.objects.get_or_create(
+    """Give `user` a role over a scope. Logged; a repeat of an existing assignment is a no-op."""
+    assignment, created = RoleAssignment.objects.get_or_create(
         user=user, role=role, scope_type=scope_type, scope_id=scope_id
     )
+    if created:
+        audit.record(
+            "role.assigned",
+            "role_assignment",
+            entity_id=assignment.pk,
+            actor_id=None if actor is None else actor.pk,
+            after=_role_snapshot(assignment),
+            reason=reason,
+        )
     return assignment
 
 
-def revoke_role(assignment: RoleAssignment) -> None:
+def revoke_role(assignment: RoleAssignment, actor: User | None = None, reason: str = "") -> None:
+    audit.record(
+        "role.revoked",
+        "role_assignment",
+        entity_id=assignment.pk,
+        actor_id=None if actor is None else actor.pk,
+        before=_role_snapshot(assignment),
+        reason=reason,
+    )
     assignment.delete()

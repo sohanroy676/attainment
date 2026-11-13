@@ -5,9 +5,7 @@ from django.db import transaction
 from django.http import HttpRequest, HttpResponse
 
 from .context import set_current_college_id
-from .services import set_current_college
-
-SESSION_KEY = "college_id"
+from .services import SESSION_KEY, set_current_college
 
 
 class TenantMiddleware:
