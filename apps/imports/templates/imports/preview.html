@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Roster preview - Attainment{% endblock %}
+{% block content %}
+<h1>Roster preview</h1>
+<p>{{ batch.filename }} for section {{ batch.section.name }}: <strong>{{ batch.get_status_display }}</strong></p>
+{% if messages %}<ul>{% for message in messages %}<li>{{ message }}</li>{% endfor %}</ul>{% endif %}
+<table>
+  <tr><td>New students</td><td>{{ report.new }}</td></tr>
+  <tr><td>Already on the roster, unchanged</td><td>{{ report.unchanged }}</td></tr>
+  <tr><td>Name will change</td><td>{{ report.renamed }}</td></tr>
+  <tr><td>Known students to enrol</td><td>{{ report.enrol }}</td></tr>
+  <tr><td>On the roster but not in the file</td><td>{{ report.missing }}</td></tr>
+  <tr><td>Problems</td><td>{{ report.errors }}</td></tr>
+</table>
+{% if report.error_rows %}
+<h2>Problems to fix in the file</h2>
+<ul class="errorlist">{% for row in report.error_rows %}<li>Row {{ row.0 }}: {{ row.1 }}</li>{% endfor %}</ul>
+<p>Nothing was saved. Fix the file and upload it again.</p>
+<p><a href="{% url 'imports:upload' batch.section_id %}">Upload again</a></p>
+{% endif %}
+{% if missing %}
+<h2>Not in the file</h2>
+<ul>{% for roll, name in missing %}<li>{{ roll }} {{ name }}</li>{% endfor %}</ul>
+{% endif %}
+{% if batch.status == "previewed" %}
+<form method="post">
+  {% csrf_token %}
+  {% if missing %}<p><label><input type="checkbox" name="withdraw_missing"> Withdraw the students who are not in the file</label></p>{% endif %}
+  <button type="submit">Confirm and save</button>
+  <button type="submit" name="discard" value="1">Discard</button>
+</form>
+{% elif batch.status == "committed" %}
+<p>The roster was updated.</p>
+{% endif %}
+{% endblock %}

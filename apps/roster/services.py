@@ -223,3 +223,19 @@ def current_identifier(
         rows = rows.filter(scope_section=section) | rows.filter(scope_section__isnull=True)
     row = rows.order_by("-created_at").first()
     return None if row is None else row.value
+
+
+def rename_student(student: Student, name: str, actor: User | None = None) -> Student:
+    """Correct a student's name. The audit event records that the name changed, not the names."""
+    name = name.strip()
+    if not name:
+        raise ValidationError("A student needs a name.")
+    if name != student.name:
+        before = audit.snapshot(student)
+        student.name = name
+        student.save(update_fields=["name", "updated_at"])
+        audit.record_model(
+            "updated", student, actor_id=_actor(actor), before=before,
+            after=audit.snapshot(student), reason="name corrected",
+        )  # fmt: skip
+    return student
