@@ -1,7 +1,7 @@
 # Active Context
 
 ## Current focus
-Repo scaffold only: Claude Code files, CI, ADRs, memory bank, README, ROADMAP. No application code yet. Next: v0.1.0 (foundation and tenancy) from `ROADMAP.md`.
+v0.1.0 (foundation and tenancy) is implemented on branch `feature/v0.1.0-foundation`, not pushed. Next: push with approval, watch CI, run M1 to M5, release gate, tag. Then v0.2.0 (engine) per `memory-bank/next_session_prompt.md`.
 
 ## Decisions (settled, do not re-ask)
 - Stack: Python 3.12, uv, Django 5.2 LTS, PostgreSQL 16+, HTMX; pure `engine/` package with `Decimal` (ADRs 0002 to 0004).
@@ -23,10 +23,24 @@ Repo scaffold only: Claude Code files, CI, ADRs, memory bank, README, ROADMAP. N
 - Re-check free-tier limits (Render, Neon) before deploying the demo.
 - Indirect survey workbooks are needed for v1.3.0.
 
+## v0.1.0 design choices (settled)
+- Two DB roles: `default` = non-owner app role; `owner` alias runs `migrate --database owner`. Grants to the app role are applied by a `post_migrate` handler in `apps/tenancy/apps.py` (no TRUNCATE; audit table loses UPDATE and DELETE).
+- `TenantMiddleware` opens its own transaction and sets `app.college_id` with `set_config(..., true)`. Django's ATOMIC_REQUESTS alone starts too late (after middleware), so the middleware wraps the request. The college comes from the session key written at login.
+- Pre-login lookups (login, password reset) see exactly one user row via `app.auth_login` / `app.auth_user_id` in the users RLS policy. Username is unique across all colleges.
+- Lockout is per username only (axes.W006 silenced): behind the proxy all clients share one IP.
+- Tests: `config/settings/test.py`, database `attainment_test` created by the PostgreSQL superuser, migrated by the owner, used as the app role. Use `committed_db` for tests that need real commits; the owner truncates afterwards. Needs `POSTGRES_*` and `DB_*` env vars (from `.env` via `scripts/init_env.py`, or the shell).
+- Demo accounts: `a.` and `b.` + admin, iqac, hod, coordinator, lecturer, exam, principal, auditor. Design section 2.5 does not list demo accounts; the set is derived from the section 9 role table.
+
+## Open items from v0.1.0
+- Platform admin (no college) is not implemented: users must belong to a college.
+- Failed logins are not audited (college unknown before login); successful login, logout, password reset and role changes are.
+- Scope containment (department covers its sections) waits for the academic structure in v0.4.0.
+- `.env.example` is blocked for the Read/Write tools by a permission rule; edit it by hand if needed.
+
 ## Environment notes
 - Write files as UTF-8, no BOM, LF endings.
 - `gh` auth may be unavailable in cloud sessions; check CI with the GitHub MCP tools.
 - Real mentor workbooks only in gitignored `data/private/`; committed fixtures are anonymised.
 
 ## Next step
-Start v0.1.0 with `/new-feature`: pyproject and uv lockfile, Django project with `config/`, Docker and Compose with PostgreSQL, tenancy base (college_id, RLS, isolation test), CI with a PostgreSQL service. Then update `progress.md`.
+With approval, push the branch, watch CI, run M1 to M5, tag v0.1.0. Then start v0.2.0.
