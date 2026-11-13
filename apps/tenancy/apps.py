@@ -7,7 +7,7 @@ from django.db.models.signals import post_migrate
 from psycopg import sql
 
 # Tables the app role may read and add to but never change (see design section 12).
-APPEND_ONLY_TABLES = ("audit_auditevent",)
+APPEND_ONLY_TABLES = ("audit_auditevent", "marks_markchange")
 
 
 def grant_app_role(using: str, **kwargs: Any) -> None:

@@ -2,6 +2,11 @@
 
 ## Unreleased (built, not yet released; manual tests and golden data pending)
 
+### v0.6.0 - marks entry and import
+- Mark rows and cells with all states (value including 0, blank, absent, withheld, exempted, not applicable, not attempted), attempts, optimistic locking by row version, append-only change history (database-enforced), reason required after submission, per-section permissions (lecturer own section, exam branch SEE only, auditor read-only).
+- Server-rendered marks grid, pre-filled Excel sheet per section, marks import with preview and all-or-nothing commit (file kept), SEE script mapping and SEE import by script number with best-N warnings, file safety (uncached formulas, entity attacks, size, type).
+- Engine adapter turns stored marks into engine input. Not yet: the Jspreadsheet grid with paste and its browser test (A11), and the DS-A import counts (A10).
+
 ### v0.5.0 - outcomes, question papers and methods
 - Programme outcomes, versioned course definitions and COs, CO-PO grid (blank, 0, 1, 2, 3; all-or-nothing save naming bad cells), targets per offering and per outcome and batch; grid screen; CO and map import from CSV or Excel.
 - Question papers (questions, parts, CO tags, choice groups with best N and best K parts), plain-word validation, pass-mark overrides that need a reason and IQAC approval before the engine sees them, copy to a new offering, paper page.

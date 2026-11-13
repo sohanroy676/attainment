@@ -64,16 +64,49 @@ def _csv_rows(content: bytes) -> list[list[str]]:
 
 def _xlsx_rows(content: bytes) -> list[list[str]]:
     import openpyxl
-    from openpyxl.utils.exceptions import InvalidFileException
 
     try:
+        # defusedxml (installed) makes openpyxl refuse entity-expansion and external-entity files
         workbook = openpyxl.load_workbook(io.BytesIO(content), data_only=True, read_only=True)
-    except (InvalidFileException, OSError, KeyError, ValueError) as error:
-        raise UnreadableFile("The Excel file could not be opened.") from error
-    sheet = workbook.worksheets[0]
-    rows = [[_cell_text(c) for c in row] for row in sheet.iter_rows(values_only=True)]
-    workbook.close()
+        sheet = workbook.worksheets[0]
+        rows = [[_cell_text(c) for c in row] for row in sheet.iter_rows(values_only=True)]
+        workbook.close()
+    except Exception as error:  # noqa: BLE001 - an upload may fail in many ways; all mean "unreadable"
+        raise UnreadableFile(
+            "The Excel file could not be opened or is not safe to read."
+        ) from error
+    uncached = _uncached_formulas(content)
+    if uncached:
+        raise UnreadableFile(
+            f"Cell {uncached[0]} holds a formula with no stored result. Open the file in Excel, "
+            "save it, and upload it again (formulas are never calculated here)."
+        )
     return rows
+
+
+def _uncached_formulas(content: bytes) -> list[str]:
+    """Cells that hold a formula whose cached value was never saved (so data_only reads None)."""
+    import openpyxl
+
+    try:
+        formulas = openpyxl.load_workbook(io.BytesIO(content), data_only=False, read_only=True)
+        values = openpyxl.load_workbook(io.BytesIO(content), data_only=True, read_only=True)
+        found = []
+        for f_row, v_row in zip(
+            formulas.worksheets[0].iter_rows(), values.worksheets[0].iter_rows(), strict=False
+        ):
+            for f_cell, v_cell in zip(f_row, v_row, strict=False):
+                if (
+                    isinstance(f_cell.value, str)
+                    and f_cell.value.startswith("=")
+                    and v_cell.value is None
+                ):
+                    found.append(f_cell.coordinate)
+        formulas.close()
+        values.close()
+    except Exception:  # noqa: BLE001 - the first load already vouched for the file
+        return []
+    return found
 
 
 def _cell_text(value: object) -> str:

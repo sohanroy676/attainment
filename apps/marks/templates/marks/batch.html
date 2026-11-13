@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Preview - Attainment{% endblock %}
+{% block content %}
+<h1>Preview</h1>
+<p>{{ batch.filename }}: <strong>{{ batch.get_status_display }}</strong></p>
+{% if messages %}<ul>{% for message in messages %}<li>{{ message }}</li>{% endfor %}</ul>{% endif %}
+<table>
+  <tr><td>Rows understood</td><td>{{ report.rows }}</td></tr>
+  {% if report.cells %}<tr><td>Cells</td><td>{{ report.cells }}</td></tr><tr><td>Cells that change</td><td>{{ report.changed }}</td></tr>{% endif %}
+  <tr><td>Problems</td><td>{{ report.errors }}</td></tr>
+</table>
+{% if report.error_rows %}<h2>Problems to fix</h2><ul class="errorlist">{% for row in report.error_rows %}<li>Row {{ row.0 }}: {{ row.1 }}</li>{% endfor %}</ul><p>Nothing was saved. Fix the file and upload it again.</p>{% endif %}
+{% if report.warnings %}<h2>Warnings</h2><ul>{% for row in report.warnings %}<li>Row {{ row.0 }}: {{ row.1 }}</li>{% endfor %}</ul>{% endif %}
+{% if batch.status == "previewed" %}<form method="post">{% csrf_token %}<button type="submit">Confirm and load</button></form>{% endif %}
+{% endblock %}

@@ -1,7 +1,7 @@
 # Active Context
 
 ## Current focus
-v0.2.0 to v0.4.0 are built locally as stacked branches (no push yet; owner runs manual tests later, all at once). Next build: v0.6.0 (marks entry and import).
+v0.2.0 to v0.4.0 are built locally as stacked branches (no push yet; owner runs manual tests later, all at once). Next build: v0.7.0 (results and explanations: CalculationRun, ResultValue, Explain screens; R1 and R2 on screen).
 
 ## Decisions (settled, do not re-ask)
 - Stack: Python 3.12, uv, Django 5.2 LTS, PostgreSQL 16+, HTMX; pure `engine/` package with `Decimal` (ADRs 0002 to 0004).
@@ -62,6 +62,14 @@ v0.2.0 to v0.4.0 are built locally as stacked branches (no push yet; owner runs 
 - Method versions: the exact JSON text is stored (`config_text`); `content_hash` is SHA-256 of the canonical form, set at activation. A DB trigger makes published versions immutable (only active to retired plus `effective_to` may change) and undeletable.
 - Method resolution: levels university, college, programme, course; most specific wins; a locked wider level always wins; assigning below a locked level is refused. Date for an offering defaults to its academic year's start date.
 - `User.ADMIN_PERMISSION` maps admin app labels to permissions (outcomes: `outcomes.edit`, assessments: `paper.edit`, methodology: `method.edit`).
+
+## v0.6.0 design choices (settled)
+- `MarkCell` unique per (row, part); `row_version` increments on each real change; `save_cell(expected_version=...)` refuses stale saves with `StaleCell`. `expected_version=0` means "no value yet". Saving an unchanged value does nothing (no version, no history).
+- `MarkChange` is append-only for the app role (revoked UPDATE/DELETE plus trigger); `marks_markchange` is in `APPEND_ONLY_TABLES` in `apps/tenancy/apps.py`.
+- Permissions: SEE needs `marks.enter_see` (exam branch, college-wide), other assessments `marks.enter_internal` over the section; reading also allowed with `reports.view` over the section (auditor, HoD). `save_cell` checks the right for the enrolment's section.
+- Imports: any error rejects the whole file; blank cells on a blank stay untouched; marks sheets carry a `meta` sheet (assessment and section ids) to catch the wrong sheet; script mapping files may carry a `section` column where roll numbers repeat across sections.
+- Engine adapter `marks.services.engine_assessment(assessment, sections, state_map)`: default maps value to entered, absent to absent, everything else to blank; a student whose every cell is absent is `absent_whole`.
+- Parser safety: broad catch at the file boundary, defusedxml for XML attacks, formulas without cached values refused with the cell named.
 
 ## Environment notes
 - Write files as UTF-8, no BOM, LF endings.

@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}{{ assessment.name }} - Attainment{% endblock %}
+{% block content %}
+<h1>{{ assessment.name }}</h1>
+<p>{{ assessment.offering }}, section {{ section.name }}</p>
+{% if messages %}<ul class="errorlist">{% for message in messages %}<li>{{ message }}</li>{% endfor %}</ul>{% endif %}
+<p>Type a number, or <strong>AB</strong> (absent), <strong>-</strong> (not attempted), WH, EX, NA. Blank means nothing entered.
+{% if editable %}<a href="{% url 'marks:template' assessment.pk section.pk %}">Download the sheet</a> | <a href="{% url 'marks:import' assessment.pk section.pk %}">Upload a filled sheet</a>{% endif %}</p>
+<form method="post">
+  {% csrf_token %}
+  <table>
+    <tr><th>Roll</th>{% for part in parts %}<th title="max {{ part.max }}">{{ part.code }}</th>{% endfor %}</tr>
+    {% for row in rows %}
+    <tr><th>{{ row.roll }}</th>
+      {% for c in row.cells %}
+      <td>
+        {% if editable %}
+        <input name="cell:{{ c.key }}" value="{{ c.text }}" size="5"{% if c.error %} aria-invalid="true" title="{{ c.error }}"{% endif %}>
+        <input type="hidden" name="old:{{ c.key }}" value="{{ c.old }}">
+        <input type="hidden" name="ver:{{ c.key }}" value="{{ c.ver }}">
+        {% if c.error %}<span class="errorlist">{{ c.error }}</span>{% endif %}
+        {% else %}{{ c.text }}{% endif %}
+        {% if c.cell %}<a href="{% url 'marks:history' c.cell.pk %}" title="history">h</a>{% endif %}
+      </td>
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  </table>
+  {% if editable %}<p><label for="reason">Reason (needed to change submitted marks)</label><input id="reason" name="reason"></p>
+  <button type="submit">Save</button>{% endif %}
+</form>
+{% endblock %}
