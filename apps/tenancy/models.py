@@ -43,3 +43,13 @@ class TenantModel(models.Model):
                 raise RuntimeError("No current college: cannot save a tenant record")
             self.college_id = current
         super().save(*args, **kwargs)
+
+
+class TenantRecord(TenantModel):
+    """A tenant table with created and updated times. Who changed what is in the audit log."""
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        abstract = True

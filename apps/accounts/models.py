@@ -42,6 +42,38 @@ class User(TenantModel, AbstractBaseUser):
     def __str__(self) -> str:
         return self.username
 
+    # Django admin (the setup screens) asks these questions; the answers come from the one
+    # permission service, so the admin never grants more than the roles do.
+    ADMIN_PERMISSION = {  # noqa: RUF012
+        "academics": "structure.manage",
+        "roster": "roster.manage",
+        "imports": "roster.manage",
+    }
+
+    def _may_administer(self, app_label: str | None) -> bool:
+        from .services import has_permission
+
+        if not self.is_active:
+            return False
+        wanted = (
+            [self.ADMIN_PERMISSION[app_label]]
+            if app_label in self.ADMIN_PERMISSION
+            else []
+            if app_label
+            else sorted(set(self.ADMIN_PERMISSION.values()))
+        )
+        return any(has_permission(self, permission) for permission in wanted)
+
+    @property
+    def is_staff(self) -> bool:
+        return self._may_administer(None)
+
+    def has_perm(self, perm: str, obj: object = None) -> bool:
+        return self._may_administer(perm.split(".")[0])
+
+    def has_module_perms(self, app_label: str) -> bool:
+        return self._may_administer(app_label)
+
 
 class Role(models.TextChoices):
     COLLEGE_ADMIN = "college_admin", "College admin"
