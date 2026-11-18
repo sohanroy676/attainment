@@ -1,6 +1,9 @@
 # Changelog
 
-## Unreleased (built, not yet released; manual tests and golden data pending)
+## v1.0.1 (2026-11-18)
+v1.0.0 plus the items carried over from earlier versions: batch prepare/approve/sign tasks in the inbox; the HoD reads the audit events of their own department; result pages mark overridden pass marks and show a target proposal (display only); observations and plans can be edited (audited before and after); pasting a block from Excel into the marks grid (small script, browser tests); CI installs the browser for the end-to-end tests; the three GitHub Actions bumps from Dependabot. Same release-gate exceptions as v1.0.0: no manual tests by anyone but the author, golden tests skip (DS-A and DS-B absent), update-rollback cycle untested.
+
+## Earlier versions (tagged v0.2.0 to v1.0.0 at the owner's instruction with the same exceptions)
 
 ### v1.0.0 - the prototype (built, not yet released)
 - Acceptance suite: one named test for each of the 20 scenarios (`tests/acceptance`). Demo data: `seed_demo_course` adds a synthetic Deep Learning like course with marks to both demo colleges (roll schemes 1.. per section and 1-130 across the batch). Demo script, open-items list, test report.
