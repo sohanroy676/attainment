@@ -389,3 +389,34 @@ def test_the_paper_page_refuses_others_and_other_colleges(committed_db: None) ->
     with college_context(other.id):
         assign_role(outsider, Role.IQAC)
     assert _client("b.iqac").get(f"/papers/{paper.pk}/").status_code == 404
+
+
+def test_a_coordinator_scoped_to_the_offering_can_open_and_propose(committed_db: None) -> None:
+    """The demo gives the coordinator an offering-scoped role; an unscoped check refused it."""
+    college = make_college("a")
+    s, paper, part, *_ = _paper_with_part(college)
+    scoped = make_user(college, "a.scoped")
+    with college_context(college.id):
+        assign_role(scoped, Role.COORDINATOR, "offering", s.offering.pk)
+    client = _client("a.scoped")
+    url = f"/papers/{paper.pk}/"
+    assert b"Propose" in client.get(url).content
+    done = client.post(
+        url,
+        {"action": "propose", "part": str(part.pk), "pass_mark": "2", "reason": "college practice"},
+        follow=True,
+    )
+    assert b"Waiting for IQAC approval" in done.content
+
+
+def test_the_course_page_links_the_paper_and_the_co_po_map(committed_db: None) -> None:
+    college = make_college("a")
+    s, paper, *_ = _paper_with_part(college)
+    iqac_page = _client("a.iqac").get(f"/results/{s.offering.pk}/")
+    assert iqac_page.status_code == 200
+    assert f"/papers/{paper.pk}/".encode() in iqac_page.content
+    lecturer = make_user(college, "a.lect2")
+    with college_context(college.id):
+        assign_role(lecturer, Role.LECTURER, "offering", s.offering.pk)
+    page = _client("a.lect2").get(f"/results/{s.offering.pk}/")
+    assert f"/papers/{paper.pk}/".encode() not in page.content

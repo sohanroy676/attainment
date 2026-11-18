@@ -15,6 +15,8 @@ from django.views.decorators.http import require_http_methods, require_POST
 
 from apps.academics.models import Batch, CourseOffering, Programme, Section
 from apps.accounts.services import has_permission
+from apps.assessments import services as assessment_services
+from apps.outcomes import services as outcome_services
 
 from . import services
 from .models import CalculationRun, IndirectValue
@@ -51,10 +53,18 @@ def course_page(request: HttpRequest, offering_id: uuid.UUID) -> HttpResponse:
     run = services.latest_run(offering, programme)
     shown = None if run is None else present(run)
     sections = list(offering.sections.filter(programme=programme).order_by("name"))
+    may_open_papers = has_permission(
+        request.user, "paper.edit", "offering", offering.pk
+    ) or has_permission(request.user, "override.apply", "offering", offering.pk)
+    definition = outcome_services.newest_definition(offering.course)
     return render(
         request,
         "results/course.html",
         {
+            "papers": assessment_services.papers_of(offering) if may_open_papers else [],
+            "mapping_definition": definition
+            if definition is not None and has_permission(request.user, "outcomes.edit")
+            else None,
             "offering": offering,
             "programme": programme,
             "run": run,

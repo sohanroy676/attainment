@@ -23,6 +23,11 @@ def _actor(actor: User | None) -> uuid.UUID | None:
     return None if actor is None else actor.pk
 
 
+def papers_of(offering: CourseOffering) -> list[Assessment]:
+    """The offering's papers, in the order they are usually shown."""
+    return list(offering.assessments.order_by("date", "tool"))
+
+
 def course_outcomes_for(offering: CourseOffering) -> dict[str, CourseOutcome]:
     """The COs of the offering's course in its newest definition, by code."""
     definition = offering.course.definitions.order_by("-version").first()

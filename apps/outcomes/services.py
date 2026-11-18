@@ -69,6 +69,11 @@ def create_definition(
     return definition
 
 
+def newest_definition(course: Course) -> CourseDefinitionVersion | None:
+    """The course's newest definition version, or None."""
+    return course.definitions.order_by("-version").first()
+
+
 def mapping_grid(
     definition: CourseDefinitionVersion, programme: Programme
 ) -> dict[str, dict[str, int]]:

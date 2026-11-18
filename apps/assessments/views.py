@@ -21,8 +21,8 @@ def paper_page(request: HttpRequest, assessment_id: uuid.UUID) -> HttpResponse:
     paper = get_object_or_404(
         Assessment.objects.select_related("offering__course"), pk=assessment_id
     )
-    can_edit = has_permission(request.user, "paper.edit")
-    can_decide = has_permission(request.user, "override.apply")
+    can_edit = has_permission(request.user, "paper.edit", "offering", paper.offering_id)
+    can_decide = has_permission(request.user, "override.apply", "offering", paper.offering_id)
     if not (can_edit or can_decide):
         raise PermissionDenied
     if request.method == "POST":

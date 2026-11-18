@@ -13,12 +13,12 @@ Use two browsers or private windows so you can be two people at once. Users are 
 |---|---|---|
 | 1 | Log in as `a.iqac` | The home page lists the role; "My tasks" |
 | 2 | Open **Methods** (`/methods/`) and the Vasavi method version | Version number, content hash, status "active"; the version cannot be edited |
-| 3 | Open the Deep Learning paper (admin: Assessments) and the CO-PO map | Parts with maximum marks and COs; choice group on the semester paper; mapping grid with 1 to 3 |
+| 3 | As `a.iqac` or `a.coordinator`, open the course page (address printed by `seed_demo_course`). Under "Set-up" open the Deep Learning paper and the CO-PO map (the map link is for `a.iqac`) | Parts with maximum marks and COs; choice group on the semester paper; mapping grid with 1 to 3 |
 | 4 | As `a.lecturer`, open the Internal-I grid for section A (from the course page of the coordinator, or `/marks/<assessment>/<section>/`); change one mark and save | "Saved 1 marks"; the cell has a history link (h) |
 | 5 | As `a.iqac`, open the course page (address printed by `seed_demo_course`) | Levels per tool, direct, indirect (entered, not measured), final, course attainment, target, status |
 | 6 | Click three numbers (a tool percentage, a final CO, the course) | Explain: pass counts, denominator, method and engine version, input fingerprint |
 | 7 | Open **Gaps** | COs under target, the weakest question parts |
-| 8 | As `a.coordinator`, open the paper of Internal-II and propose a pass mark of 2 for a part, with a reason; as `a.iqac` approve it | The paper shows it approved; the result recalculates by itself; the report lists the override |
+| 8 | As `a.coordinator`, open the paper of Internal-II from the course page's Set-up links and propose a pass mark of 2 for a part, with a reason; as `a.iqac` approve it | The paper shows it approved; the result recalculates by itself; the report lists the override |
 | 9 | Compare the course attainment before and after step 8 | The number changes; every change is in the audit log (`/workflow/audit/`) |
 | 10 | Coordinator: **review**; `a.hod`: **approve**; `a.principal`: **sign** (My tasks, then the course stage page) | Signature records with name, role, time and hash |
 | 11 | As `a.lecturer`, try to change a mark of the signed result | Refused (the marks are locked) |

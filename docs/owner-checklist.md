@@ -8,7 +8,12 @@ State: everything through v1.0.1 is merged to `main` and tagged; CI is green. Wh
 3. `docker compose up -d --build`, then
    `docker compose exec app python manage.py seed_demo` (prints the demo password once: save it) and
    `docker compose exec app python manage.py seed_demo_course` (prints each demo college's course address).
-4. Open `http://localhost`. `/healthz` should say `ok`.
+4. Open `http://localhost`. `/healthz` should say `ok`. (`https://localhost` may not answer on a laptop trial; use `http`.)
+
+If step 3 fails:
+- `Bind for 127.0.0.1:5432 failed: port is already allocated`: another Postgres (for example a leftover test container, see `docker ps`) holds the port. Stop it (`docker stop <name>`) or set `DB_PORT=5433` in `.env`.
+- `failed to resolve host 'db'`: the db container was created during a failed start and is not on the network. Run `docker compose down`, then `docker compose up -d`.
+- `password authentication failed for user "attainment_owner"`: the database volume was created with older passwords than the current `.env`. PostgreSQL only sets passwords when a volume is first created. If the database holds nothing you need, run `docker compose down -v` (deletes the volumes), then `docker compose up -d`.
 **If something fails here, stop and tell the next session; do not work around it.**
 
 ## 2. Walk the demo (about 45 minutes; this is v1.0.0 M1)
