@@ -165,6 +165,7 @@ def test_submitting_marks_the_rows_submitted_and_a_return_frees_them(db: None) -
             marks.save_cell(row, part, "value", Decimal("3"), env.lecturer_a)
         wf.transition_section(env.s.section_a, internal(w), "return", w.coordinator, "check 1a")
         assert set(rows.values_list("status", flat=True)) == {"entered"}
+        row.refresh_from_db()  # the instance fetched before the return still says submitted
         marks.save_cell(row, part, "value", Decimal("3"), env.lecturer_a, expected_version=1)
 
 
@@ -274,16 +275,25 @@ def test_a4_a_signed_run_is_frozen_and_a_banner_shows_later_differences(db: None
             "UPDATE results_resultvalue SET value = '9' WHERE run_id = %s",
             "DELETE FROM results_resultvalue WHERE run_id = %s",
         ):
-            with pytest.raises(DatabaseError, match="frozen"), transaction.atomic():
-                with connection.cursor() as cursor:
-                    cursor.execute(sql, [str(run.pk)])
+            with (
+                pytest.raises(DatabaseError, match="frozen"),
+                transaction.atomic(),
+                connection.cursor() as cursor,
+            ):
+                cursor.execute(sql, [str(run.pk)])
         # reopen, edit a mark, recalculate: the signed run does not move
         wf.reopen(w.offering, w.programme, w.r.hod, "section B marks were wrong")
-        row = MarkSheetRow.objects.filter(
-            assessment=internal(w), enrolment__section=env.s.section_b
-        ).first()
         part = internal(w).parts.get(code="1a")
-        cell = MarkCell.objects.get(row=row, part=part)
+        # a cell that really changes: one student in section B already has 0 in part 1a
+        cell = (
+            MarkCell.objects.filter(
+                row__assessment=internal(w), row__enrolment__section=env.s.section_b, part=part
+            )
+            .exclude(value=0)
+            .first()
+        )
+        assert cell is not None
+        row = cell.row
         marks.save_cell(
             row, part, "value", Decimal("0"), env.lecturer_b, cell.row_version, reason="fix"
         )
@@ -312,10 +322,14 @@ def test_a5_the_signature_records_name_role_time_and_hash(db: None) -> None:
         assert before <= signature.at <= timezone.now()
         assert signature.content_hash == run.content_hash == results.run_content_hash(run)
         assert signature.cycle == 1 and signature.run_id == run.pk
-    with pytest.raises(DatabaseError), transaction.atomic(), connection.cursor() as cursor:
-        # the app role cannot rewrite or remove a signature, even inside the college
-        with college_context(w.college.id):
-            cursor.execute("UPDATE workflow_signature SET role = 'x'")
+    # the app role cannot rewrite or remove a signature, even inside the college
+    with (
+        pytest.raises(DatabaseError),
+        transaction.atomic(),
+        college_context(w.college.id),
+        connection.cursor() as cursor,
+    ):
+        cursor.execute("UPDATE workflow_signature SET role = 'x'")
 
 
 def test_a5_a_provisional_run_cannot_be_sealed(db: None) -> None:

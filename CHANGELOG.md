@@ -2,7 +2,8 @@
 
 ## Unreleased (built, not yet released; manual tests and golden data pending)
 
-### v0.8.0 - workflow and governance (WIP: built, tests not fully run)
+### v0.8.0 - workflow and governance (built and verified locally)
+- Fix: a department-scoped HoD can now approve a pass-mark override for their own offerings (the check was college-wide only).
 - Section marks: draft, submitted, accepted or returned (reason). Course result: reviewed, approved, signed, reopened (reason, new cycle). Table-driven state machine.
 - Approval locks marks (service check plus database trigger); signing seals the run (frozen by triggers, content hash); reopen unlocks and stores a new run; "differs from signed" banner.
 - Overrides refused after approval. Signature records (name, role, time, hash). Support grant (time-limited, not yet enforced). Task inbox and audit viewer.

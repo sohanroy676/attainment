@@ -198,7 +198,7 @@ def set_override(
 
 def decide_override(part: QuestionPart, approver: User, approve: bool) -> QuestionPart:
     """IQAC (or anyone with override.apply) approves or rejects a proposed override."""
-    if not has_permission(approver, "override.apply"):
+    if not has_permission(approver, "override.apply", "offering", part.assessment.offering_id):
         raise PermissionDenied("Only IQAC or the HoD can approve a pass-mark override.")
     _refuse_when_locked(part)
     if part.override_status != QuestionPart.OverrideStatus.PENDING:

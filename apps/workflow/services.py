@@ -188,7 +188,8 @@ def approve(offering: CourseOffering, programme: Programme, actor: User) -> Resu
     (provisional) cannot be approved."""
     with transaction.atomic():
         stage, target = _stage_move(offering, programme, "approve", actor, "")
-        assert stage is not None  # the table only allows approve from reviewed
+        if stage is None:  # the table only allows approve from reviewed
+            raise ValidationError("There is no reviewed result to approve.")
         run = results.snapshot(offering, programme, actor)
         if run.status != CalculationRun.Status.COMPLETE:
             raise ValidationError(
@@ -211,7 +212,8 @@ def sign(offering: CourseOffering, programme: Programme, actor: User) -> ResultS
     """The principal signs: the approved run is sealed and the database refuses any change."""
     with transaction.atomic():
         stage, target = _stage_move(offering, programme, "sign", actor, "")
-        assert stage is not None and stage.run is not None
+        if stage is None or stage.run is None:
+            raise ValidationError("There is no approved run to sign.")
         run = results.seal(stage.run, actor)
         before = audit.snapshot(stage)
         stage.status = target
@@ -230,7 +232,8 @@ def reopen(offering: CourseOffering, programme: Programme, actor: User, reason: 
     signature cycle starts, and a fresh run is stored. The signed run stays readable."""
     with transaction.atomic():
         stage, target = _stage_move(offering, programme, "reopen", actor, reason)
-        assert stage is not None
+        if stage is None:
+            raise ValidationError("There is no result to reopen.")
         before = audit.snapshot(stage)
         Reopening.objects.create(
             stage=stage, from_cycle=stage.cycle, from_status=stage.status,

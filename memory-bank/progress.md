@@ -20,7 +20,7 @@
 - v0.6.0 marks built on `feature/v0.6.0-marks` (2026-11-13): `apps/marks` (cells, states, history, locking, permissions), grid/template/import/SEE screens, defusedxml. 332 tests pass, 9 skipped (golden data). Not done: Jspreadsheet paste grid and Playwright A11; A10 needs DS-A.
 - v0.7.0 results built on `feature/v0.7.0-results` (2026-11-13): `apps/results` (runs, values, indirect, explain, pages, export, auto recalculation). 354 tests pass, 9 skipped (golden data). The engine now carries the first blocked flag through section roll-ups.
 
-- v0.8.0 workflow built on `feature/v0.8.0-workflow` (2026-11-13) as a WIP commit: `apps/workflow`, signed-run freeze in results, mark lock trigger in marks. Tests written (A1 to A9) but NOT fully run: the machine ran out of memory; a partial run had 2 failures. See `next_session_prompt.md`.
+- v0.8.0 workflow built and verified on `feature/v0.8.0-workflow` (2026-11-18): `apps/workflow`, signed-run freeze in results, mark lock trigger in marks. Full suite: 398 passed, 15 skipped (golden data), ruff, mypy and migration check clean. Fixed on verification: a department-scoped HoD could not decide a pass-mark override (check now scoped to the offering); two test bugs (stale row instance, random `.first()` choosing an unchanged cell).
 
 ## In progress
 - Nothing is pushed: `feature/v0.2.0-engine`, `v0.3.0-engine-batch`, `v0.4.0-academics-roster` and `v0.5.0-outcomes-papers-methods`, `v0.6.0-marks`, `v0.7.0-results` are stacked local branches (each built on the previous). The owner will run all manual tests together later.
@@ -28,4 +28,4 @@
 - DS-E (two published methods from other colleges) is still needed for the real A10 of v0.3.0.
 
 ## Next
-- Next: verify and finish v0.8.0 (fix the 2 failing tests, lint, full suite), then v0.9.0. Release gates for v0.2.0 to v0.7.0 are owed (golden data, manual tests, push, PRs, tags). v0.7.0 is the first end-to-end slice; v1.0.0 is the prototype.
+- Next: v0.9.0 (department, batch and quality loop). Release gates for v0.2.0 to v0.7.0 are owed (golden data, manual tests, push, PRs, tags). v0.7.0 is the first end-to-end slice; v1.0.0 is the prototype.
