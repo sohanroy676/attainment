@@ -34,7 +34,12 @@
 {% endfor %}
 
 <h2>Observations for this offering</h2>
-<ul>{% for o in observations %}<li>{{ o.text|linebreaksbr }}</li>{% empty %}<li>None yet.</li>{% endfor %}</ul>
+<ul>{% for o in observations %}<li>{{ o.text|linebreaksbr }}
+  {% if can_edit %}<details><summary>Edit</summary>
+    <form method="post" action="{% url 'quality:observation_edit' offering.pk o.pk %}">{% csrf_token %}
+      <label for="obs-{{ o.pk }}">Observation</label><textarea id="obs-{{ o.pk }}" name="text" rows="4" required>{{ o.text }}</textarea>
+      <button type="submit">Save changes</button></form></details>{% endif %}
+</li>{% empty %}<li>None yet.</li>{% endfor %}</ul>
 {% if can_edit %}
 <form method="post" action="{% url 'quality:observation' offering.pk %}">
   {% csrf_token %}
@@ -46,7 +51,13 @@
 
 <h2>Action plan for next year</h2>
 <ul>
-  {% for p in plans %}<li>{{ p.text|linebreaksbr }}<br><small>Owner: {{ p.owner.full_name|default:p.owner.username }}{% if p.due_date %}, due {{ p.due_date|date:"Y-m-d" }}{% endif %}</small></li>{% empty %}<li>None yet.</li>{% endfor %}
+  {% for p in plans %}<li>{{ p.text|linebreaksbr }}<br><small>Owner: {{ p.owner.full_name|default:p.owner.username }}{% if p.due_date %}, due {{ p.due_date|date:"Y-m-d" }}{% endif %}</small>
+  {% if can_edit %}<details><summary>Edit</summary>
+    <form method="post" action="{% url 'quality:plan_edit' offering.pk p.pk %}">{% csrf_token %}
+      <label for="plan-{{ p.pk }}">Action</label><textarea id="plan-{{ p.pk }}" name="text" rows="3" required>{{ p.text }}</textarea>
+      <label for="due-{{ p.pk }}">Due</label><input id="due-{{ p.pk }}" type="date" name="due_date" value="{{ p.due_date|date:'Y-m-d' }}">
+      <button type="submit">Save changes</button></form></details>{% endif %}
+</li>{% empty %}<li>None yet.</li>{% endfor %}
 </ul>
 {% if can_edit %}
 <form method="post" action="{% url 'quality:plan' offering.pk %}">

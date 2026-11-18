@@ -23,7 +23,7 @@ from apps.assessments.models import Assessment
 from apps.marks.models import MarkCell
 from apps.methodology.models import MethodVersion
 from apps.outcomes.models import CourseDefinitionVersion
-from apps.quality.models import ActionPlan, Evidence
+from apps.quality.models import ActionPlan, Evidence, Observation
 from apps.reports import export
 from apps.results.models import CalculationRun
 from apps.roster.models import Student
@@ -47,6 +47,7 @@ ID_MODELS: dict[str, Any] = {
     "run_id": CalculationRun,
     "evidence_id": Evidence,
     "plan_id": ActionPlan,
+    "observation_id": Observation,
     "student_id": Student,
 }
 WORDS = {

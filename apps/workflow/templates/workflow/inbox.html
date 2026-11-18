@@ -5,7 +5,7 @@
 {% if messages %}<ul>{% for message in messages %}<li>{{ message }}</li>{% endfor %}</ul>{% endif %}
 <ul>
   {% for t in tasks %}
-  <li><a href="{% url 'workflow:stage' t.offering_id t.programme_id %}">{{ t.label }}</a></li>
+  <li>{% if t.batch_id %}<a href="{% url 'workflow:batch' t.batch_id %}">{{ t.label }}</a>{% else %}<a href="{% url 'workflow:stage' t.offering_id t.programme_id %}">{{ t.label }}</a>{% endif %}</li>
   {% empty %}
   <li>Nothing is waiting for you.</li>
   {% endfor %}

@@ -13,7 +13,6 @@ from django.views.decorators.http import require_POST
 from apps.academics.models import Batch, CourseOffering, Programme, Section
 from apps.accounts.services import has_permission
 from apps.assessments.models import Assessment
-from apps.audit.models import AuditEvent
 from apps.results import services as results
 
 from . import services
@@ -119,10 +118,12 @@ def stage_action(
 
 @login_required
 def audit_log(request: HttpRequest) -> HttpResponse:
-    """The college audit viewer, newest first. Needs the audit right college-wide."""
-    if not has_permission(request.user, "audit.view"):
+    """The audit viewer, newest first: all events with the right college-wide, a department's
+    events with the right over that department."""
+    scope = services.audit_scope(request.user)
+    if scope is None:
         raise PermissionDenied
-    events = AuditEvent.objects.order_by("-seq")
+    events = scope.order_by("-seq")
     wanted = request.GET.get("action", "").strip()
     if wanted:
         events = events.filter(action__startswith=wanted)

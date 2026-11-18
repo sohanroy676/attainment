@@ -37,6 +37,7 @@ from engine.model import CourseInput, OfferingInput, Override
 from engine.pipeline import run_offering
 from engine.precision import decimal_text
 from engine.schema import MethodConfig
+from engine.steps.targets import revise_target
 from engine.trace import Trace
 
 from .models import (
@@ -281,6 +282,40 @@ def signed_run(offering: CourseOffering, programme: Programme) -> CalculationRun
         CalculationRun.objects.filter(offering=offering, programme=programme, signed=True)
         .order_by("-at")
         .first()
+    )
+
+
+def overrides_of(offering: CourseOffering) -> list[tuple[str, str, str, str]]:
+    """Approved pass-mark overrides as (tool, part, pass mark, reason), for the "overridden"
+    marker on result pages."""
+    return [
+        (tool, part, str(mark.normalize()), reason)
+        for (tool, part), (mark, reason) in sorted(papers.approved_overrides(offering).items())
+    ]
+
+
+@dataclass
+class TargetProposal:
+    current: str
+    proposed: str
+    rule: str
+
+
+def proposed_target(run: CalculationRun) -> TargetProposal | None:
+    """The target the method's revision rule would set for next time, shown for a person to
+    accept (it is never applied by itself). None under the default `manual` rule, or when there
+    is no target or no verdict yet."""
+    config = _config_of(run)
+    course = (run.outputs or {}).get("course") or {}
+    if config is None or course.get("target") is None or course.get("attained") is None:
+        return None
+    rule = config.targets.revise
+    if rule.rule == "manual":
+        return None
+    current = Decimal(course["target"])
+    new = revise_target(rule, current, bool(course["attained"]))
+    return TargetProposal(
+        str(current.normalize()), str(new.normalize()), f"{rule.rule} {rule.value}"
     )
 
 

@@ -122,6 +122,31 @@ def add_plan(
     return row
 
 
+def edit_observation(observation: Observation, text: str, actor: User) -> Observation:
+    """Correct an observation's wording. The audit log keeps the text before and after."""
+    _require_edit(actor, observation.offering)
+    before = audit.snapshot(observation)
+    observation.text = _clean_text(text, "observation")
+    observation.save(update_fields=["text", "updated_at"])
+    audit.record_model(
+        "updated", observation, actor_id=actor.pk, before=before, after=audit.snapshot(observation)
+    )
+    return observation
+
+
+def edit_plan(plan: ActionPlan, text: str, due_date: date | None, actor: User) -> ActionPlan:
+    """Correct an action plan's wording or due date (audited, before and after)."""
+    _require_edit(actor, plan.offering)
+    before = audit.snapshot(plan)
+    plan.text = _clean_text(text, "action plan")
+    plan.due_date = due_date
+    plan.save(update_fields=["text", "due_date", "updated_at"])
+    audit.record_model(
+        "updated", plan, actor_id=actor.pk, before=before, after=audit.snapshot(plan)
+    )
+    return plan
+
+
 def previous_plans(offering: CourseOffering) -> list[ActionPlan]:
     """Plans written on earlier offerings of the same course, oldest first, so the lecturer can
     record what was done about them."""

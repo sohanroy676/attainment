@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
+from django.db.models import QuerySet
 from django.utils import timezone
 
 from apps.academics.models import Batch, CourseOffering, Programme, Section
@@ -20,6 +21,7 @@ from apps.accounts.services import has_permission
 from apps.assessments import services as papers
 from apps.assessments.models import Assessment
 from apps.audit import services as audit
+from apps.audit.models import AuditEvent
 from apps.marks import services as marks
 from apps.marks.models import MarkSheetRow
 from apps.results import services as results
@@ -450,12 +452,13 @@ def has_support_access(user: User, now: datetime | None = None) -> bool:
 # inbox -----------------------------------------------------
 @dataclass(frozen=True)
 class Task:
-    kind: str  # submit, accept, review, approve, sign
+    kind: str  # submit, accept, review, approve, sign (and prepare for a batch)
     label: str
-    offering_id: uuid.UUID
+    offering_id: uuid.UUID | None
     section_id: uuid.UUID | None = None
     assessment_id: uuid.UUID | None = None
     programme_id: uuid.UUID | None = None
+    batch_id: uuid.UUID | None = None
 
 
 def inbox(user: User) -> list[Task]:
@@ -506,6 +509,37 @@ def inbox(user: User) -> list[Task]:
         tasks.append(
             Task(kind, f"{kind.capitalize()} {label}", offering.pk, programme_id=programme.pk)
         )
+    tasks.extend(_batch_tasks(user))
+    return tasks
+
+
+def _batch_tasks(user: User) -> list[Task]:
+    """Batch results waiting for this person: prepare (IQAC), approve (HoD), sign (principal)."""
+    BS = BatchStage.Status
+    next_step = {
+        None: ("prepare", "batch.prepare"),
+        BS.REOPENED: ("prepare", "batch.prepare"),
+        BS.PREPARED: ("approve", "workflow.approve"),
+        BS.APPROVED: ("sign", "workflow.sign"),
+    }
+    tasks = []
+    for batch in Batch.objects.select_related("programme").order_by("name"):
+        stage = batch_stage_of(batch)
+        wanted = next_step.get(None if stage is None else stage.status)
+        if wanted is None:
+            continue
+        kind, permission = wanted
+        if not has_permission(user, permission, ScopeType.PROGRAMME, batch.programme_id):
+            continue
+        if kind == "prepare":
+            latest = results.latest_batch_run(batch)
+            if latest is None or latest.status != "complete":
+                continue  # nothing to prepare yet: the batch result is missing or provisional
+        label = f"{batch.programme.name}, batch {batch.name}"
+        tasks.append(
+            Task(kind, f"{kind.capitalize()} batch result {label}", None,
+                 programme_id=batch.programme_id, batch_id=batch.pk)
+        )  # fmt: skip
     return tasks
 
 
@@ -527,3 +561,38 @@ def signatures_of(run: CalculationRun) -> list[SignatureLine]:
 def batch_signatures_of(run: BatchRun) -> list[SignatureLine]:
     rows = BatchSignature.objects.filter(run=run).order_by("at")
     return [SignatureLine(s.kind, s.role, s.signer_name, s.at) for s in rows]
+
+
+# the audit viewer's scope ----------------------------------
+def audit_scope(user: User) -> QuerySet[AuditEvent] | None:
+    """The audit events this person may read, or None when they may read none.
+
+    A college-wide right reads everything. A department right reads the events about that
+    department's programmes, batches, offerings, sections, papers, results and approvals (events
+    about single marks are college-wide only: they would need one id per cell).
+    """
+    if has_permission(user, "audit.view"):
+        return AuditEvent.objects.all()
+    departments = [
+        a.scope_id
+        for a in RoleAssignment.objects.filter(user_id=user.pk, scope_type=ScopeType.DEPARTMENT)
+        if "audit.view" in PERMISSIONS.get(a.role, frozenset())
+    ]
+    if not departments:
+        return None
+    programmes = Programme.objects.filter(department_id__in=departments)
+    offerings = CourseOffering.objects.filter(sections__programme__in=programmes).distinct()
+    ids: set[str] = {str(d) for d in departments}
+    for queryset in (
+        programmes,
+        Batch.objects.filter(programme__in=programmes),
+        offerings,
+        Section.objects.filter(programme__in=programmes),
+        Assessment.objects.filter(offering__in=offerings),
+        CalculationRun.objects.filter(offering__in=offerings),
+        BatchRun.objects.filter(batch__programme__in=programmes),
+        ResultStage.objects.filter(offering__in=offerings),
+        BatchStage.objects.filter(batch__programme__in=programmes),
+    ):
+        ids.update(str(pk) for pk in queryset.values_list("pk", flat=True))
+    return AuditEvent.objects.filter(entity_id__in=ids)
