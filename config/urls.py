@@ -16,5 +16,6 @@ urlpatterns = [
     path("marks/", include("apps.marks.urls")),
     path("workflow/", include("apps.workflow.urls")),
     path("results/", include("apps.results.urls")),
+    path("quality/", include("apps.quality.urls")),
     path("", home, name="home"),
 ]

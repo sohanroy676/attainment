@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Observations and actions - Attainment{% endblock %}
+{% block content %}
+<h1>{{ offering.course.title }}: observations and action plan</h1>
+<p>{{ offering.term }} | <a href="{% url 'results:course' offering.pk %}">Result page</a> | <a href="{% url 'results:gaps' offering.pk %}">Gaps and weakest questions</a></p>
+{% if messages %}<ul class="errorlist">{% for message in messages %}<li>{{ message }}</li>{% endfor %}</ul>{% endif %}
+
+<h2>Plans from earlier years</h2>
+{% for plan in earlier %}
+<section>
+  <h3>{{ plan.offering.term }}</h3>
+  <p>{{ plan.text|linebreaksbr }}</p>
+  <p><small>Owner: {{ plan.owner.full_name|default:plan.owner.username }}{% if plan.due_date %}, due {{ plan.due_date|date:"Y-m-d" }}{% endif %}</small></p>
+  <ul>
+    {% for a in plan.actions.all %}
+    <li>Done {{ a.done_on|date:"Y-m-d" }}: {{ a.text|linebreaksbr }}
+      {% for e in a.evidence.all %}<br><a href="{% url 'quality:evidence' e.pk %}">{{ e.name }}</a> ({{ e.size|filesizeformat }}){% endfor %}
+    </li>
+    {% empty %}<li>No action recorded yet.</li>{% endfor %}
+  </ul>
+  {% if can_edit %}
+  <form method="post" action="{% url 'quality:action' offering.pk plan.pk %}" enctype="multipart/form-data">
+    {% csrf_token %}
+    <p><label for="text-{{ plan.pk }}">Action taken</label><textarea id="text-{{ plan.pk }}" name="text" rows="3" required></textarea></p>
+    <p><label for="done-{{ plan.pk }}">Done on</label><input id="done-{{ plan.pk }}" type="date" name="done_on" required></p>
+    <p><label for="files-{{ plan.pk }}">Proof (PDF, PNG or JPEG, up to {{ max_mb }} MB each)</label>
+      <input id="files-{{ plan.pk }}" type="file" name="files" accept=".pdf,.png,.jpg,.jpeg" multiple></p>
+    <button type="submit">Record the action</button>
+  </form>
+  {% endif %}
+</section>
+{% empty %}
+<p>No earlier plans for this course.</p>
+{% endfor %}
+
+<h2>Observations for this offering</h2>
+<ul>{% for o in observations %}<li>{{ o.text|linebreaksbr }}</li>{% empty %}<li>None yet.</li>{% endfor %}</ul>
+{% if can_edit %}
+<form method="post" action="{% url 'quality:observation' offering.pk %}">
+  {% csrf_token %}
+  <p><label for="obs">New observation{% if draft %} (a draft from the gap view is filled in; edit it freely){% endif %}</label>
+    <textarea id="obs" name="text" rows="5" required>{{ draft }}</textarea></p>
+  <button type="submit">Save observation</button>
+</form>
+{% endif %}
+
+<h2>Action plan for next year</h2>
+<ul>
+  {% for p in plans %}<li>{{ p.text|linebreaksbr }}<br><small>Owner: {{ p.owner.full_name|default:p.owner.username }}{% if p.due_date %}, due {{ p.due_date|date:"Y-m-d" }}{% endif %}</small></li>{% empty %}<li>None yet.</li>{% endfor %}
+</ul>
+{% if can_edit %}
+<form method="post" action="{% url 'quality:plan' offering.pk %}">
+  {% csrf_token %}
+  <p><label for="plan">New action</label><textarea id="plan" name="text" rows="3" required></textarea></p>
+  {% if observations %}<p><label for="plan-obs">Answers observation</label>
+    <select id="plan-obs" name="observation"><option value="">(none)</option>
+      {% for o in observations %}<option value="{{ o.pk }}">{{ o.text|truncatechars:60 }}</option>{% endfor %}
+    </select></p>{% endif %}
+  <p><label for="due">Due</label><input id="due" type="date" name="due_date"></p>
+  <button type="submit">Save action plan</button>
+</form>
+{% endif %}
+
+{% if actions %}
+<h2>Actions recorded on this offering</h2>
+<ul>{% for a in actions %}<li>{{ a.done_on|date:"Y-m-d" }}: {{ a.text|linebreaksbr }}{% for e in a.evidence.all %} <a href="{% url 'quality:evidence' e.pk %}">{{ e.name }}</a>{% endfor %}</li>{% endfor %}</ul>
+{% endif %}
+{% endblock %}
