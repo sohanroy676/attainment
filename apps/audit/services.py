@@ -101,3 +101,39 @@ def verify_chain() -> bool:
 def client_ip(request: Any) -> str | None:
     address = request.META.get("REMOTE_ADDR")
     return address or None
+
+
+def snapshot(instance: Any) -> dict[str, Any]:
+    """The fields of a model instance for the audit log.
+
+    Fields named in the model's `audit_exclude` (names, identifier values) are left out: the log
+    refers to people by internal id only, so anonymising a student never breaks the chain.
+    """
+    exclude = set(getattr(instance, "audit_exclude", ())) | {"college"}
+    return {
+        field.attname: getattr(instance, field.attname)
+        for field in instance._meta.concrete_fields
+        if field.name not in exclude and field.attname not in exclude
+    }
+
+
+def record_model(
+    action: str,
+    instance: Any,
+    actor_id: uuid.UUID | None = None,
+    before: dict[str, Any] | None = None,
+    after: dict[str, Any] | None = None,
+    reason: str = "",
+    ip: str | None = None,
+) -> AuditEvent:
+    """Log a create, update or delete of a business record (`action`: created, updated, deleted)."""
+    return record(
+        f"{instance._meta.label_lower}.{action}",
+        instance._meta.label_lower,
+        entity_id=instance.pk,
+        actor_id=actor_id,
+        before=before,
+        after=after,
+        reason=reason,
+        ip=ip,
+    )

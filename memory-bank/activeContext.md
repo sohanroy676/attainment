@@ -1,7 +1,7 @@
 # Active Context
 
 ## Current focus
-v0.1.0 is tagged. v0.2.0 (engine) is built on `feature/v0.2.0-engine` and waits for the DS-A fixture so the golden tests can run. Next: owner builds DS-A, golden tests pass, M1 to M4, PR and tag; then v0.3.0 per `memory-bank/next_session_prompt.md`.
+v0.2.0 to v0.4.0 are built locally as stacked branches (no push yet; owner runs manual tests later, all at once). Next build: v0.5.0 (outcomes, question papers, methods).
 
 ## Decisions (settled, do not re-ask)
 - Stack: Python 3.12, uv, Django 5.2 LTS, PostgreSQL 16+, HTMX; pure `engine/` package with `Decimal` (ADRs 0002 to 0004).
@@ -45,10 +45,21 @@ v0.1.0 is tagged. v0.2.0 (engine) is built on `feature/v0.2.0-engine` and waits 
 - Golden data: `engine/tests/golden/ds_a/course.json` built by `scripts/build_ds_a.py`; R2 is R1 plus overrides of 2 for every 3.5-mark Internal-II part, added in the test.
 - A3 (per-question pass counts equal the workbook's own) and A4/A5 level checks on real data are only possible with the real workbook; synthetic analogues exist.
 
+## v0.3.0 and v0.4.0 design choices (settled)
+- Method schema additions: `rollup`, `po`, `batch`, `targets` (revise rule, near_target_margin), per-level `precision` with `none` mode, tool `aggregate` (`marks_weighted`, `student_level`). Engine version 0.3.0.
+- A blocked or stopped-for-review input is never ignored by a roll-up: it blocks the result.
+- Batch input is plain per-course PO values (blank skipped, 0 counted); `course_for_batch` turns a course result into one. DS-B counts per category need category data the workbook layout does not give (left empty).
+- `University` is a tenant-owned record (each college records its affiliation) so every table keeps `college_id` and RLS.
+- Roll-number uniqueness: identifiers carry a scope (section, batch or whole college); uniqueness is enforced only among current identifiers (no end date) via partial unique indexes. History rows (valid_to set) may repeat.
+- Section change: the enrolment's section decides where marks count; the old `SectionMembership` is closed, never deleted.
+- Role containment: `accounts.services.register_scope_resolver`; academics registers one so department and programme roles cover their sections. `sections_visible_to(user)` is the access query for lecturers.
+- Django admin is the setup UI. `User.is_staff` and `has_perm` delegate to the one permission service (`structure.manage`, `roster.manage`). Admin logs through `AuditedModelAdmin`, not Django's LogEntry.
+- Roster import stores parsed rows in `ImportBatch.payload` (personal data; tenant-protected, excluded from audit). Any row error rejects the whole file; confirm re-plans and refuses if the roster changed since the preview.
+
 ## Environment notes
 - Write files as UTF-8, no BOM, LF endings.
 - `gh` auth may be unavailable in cloud sessions; check CI with the GitHub MCP tools.
 - Real mentor workbooks only in gitignored `data/private/`; committed fixtures are anonymised.
 
 ## Next step
-Owner builds DS-A; run `uv run pytest -m golden`. Then M1 to M4, push `feature/v0.2.0-engine`, PR, tag after the release gate.
+Build v0.5.0. Owner later: build DS-A and DS-B, run golden tests, run all manual tests (v0.2.0 M1-M4, v0.3.0 M1-M4, v0.4.0 M1-M5, v0.1.0 M1-M5), then push the stacked branches in order, one PR each.

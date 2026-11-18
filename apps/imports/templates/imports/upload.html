@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Upload a roster - Attainment{% endblock %}
+{% block content %}
+<h1>Upload a roster</h1>
+<p>{{ section.offering.course.title }}, section {{ section.name }}</p>
+{% if messages %}<ul class="errorlist">{% for message in messages %}<li>{{ message }}</li>{% endfor %}</ul>{% endif %}
+<p>A .csv or .xlsx file whose first row has the columns <strong>roll_no</strong> and <strong>name</strong>. Nothing is saved until you confirm the preview.</p>
+<form method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+  <p><label for="file">File</label><input id="file" type="file" name="file" accept=".csv,.xlsx"></p>
+  <p><label for="scope">Roll numbers are unique within</label>
+    <select id="scope" name="scope">
+      <option value="section">this section only</option>
+      <option value="batch">the whole batch</option>
+      <option value="college">the whole college</option>
+    </select></p>
+  <button type="submit">Preview</button>
+</form>
+{% endblock %}

@@ -14,9 +14,13 @@
 - v0.1.0 merged to `main` (PR 4) and tagged `v0.1.0` on 2026-11-13 at the owner's instruction, with M1 to M5 not independently run (recorded in `docs/test-reports/v0.1.0.md`; still owed). CI green on the branch and on `main`.
 - v0.2.0 engine built on `feature/v0.2.0-engine` (2026-11-13): `engine/` with Pydantic method schema, all v0.2.0 steps, trace, input and output hashes, `python -m engine run`. 71 engine tests (synthetic analogues of A4 to A16, property tests) plus 5 golden tests, 98% engine coverage, mypy strict clean. Rules guide draft in `docs/rules-guide/`.
 
+- v0.3.0 engine built on `feature/v0.3.0-engine-batch` (2026-11-13): roll-up, PO mapping, batch, targets, per-level precision, aggregation alternatives, offering and batch CLI. 147 engine tests, 97% coverage; R1/R2 PO values and the R3 PO9 rule match without private data.
+- v0.4.0 academics and roster built on `feature/v0.4.0-academics-roster` (2026-11-13): `apps/academics`, `apps/roster`, `apps/imports`, Django admin setup screens writing to the audit log, scope resolver for role containment, roster import UI. 242 tests passing, 8 golden skipped.
+
 ## In progress
-- v0.2.0 is NOT releasable yet: golden R1/R2 (A1 to A3) need the anonymised DS-A fixture, which only the owner can create. Run `uv run python scripts/build_ds_a.py data/private/<workbook>.xlsx`, review `engine/tests/golden/ds_a/course.json`, commit it, and the 5 skipped golden tests run. If they fail, the engine is wrong, not the tests.
-- M1 to M4 of v0.2.0 are for the owner and the mentor.
+- Nothing is pushed: `feature/v0.2.0-engine`, `feature/v0.3.0-engine-batch` and `feature/v0.4.0-academics-roster` are stacked local branches (each built on the previous). The owner will run all manual tests together later.
+- Waiting on the owner for golden data: `scripts/build_ds_a.py` (DS-A) and `scripts/build_ds_b.py` (DS-B). Then `uv run pytest -m golden`.
+- DS-E (two published methods from other colleges) is still needed for the real A10 of v0.3.0.
 
 ## Next
-- Close v0.2.0 (DS-A fixture, golden tests green, M1 to M4, push, PR), then v0.3.0, then follow `ROADMAP.md` in order. v0.7.0 is the first end-to-end slice; v1.0.0 is the prototype.
+- Next build: v0.5.0 (outcomes, question papers, methods) on a branch from `feature/v0.4.0-academics-roster`. Release gates for v0.2.0 to v0.4.0 are owed (golden data, manual tests, push, PRs, tags). v0.7.0 is the first end-to-end slice; v1.0.0 is the prototype.

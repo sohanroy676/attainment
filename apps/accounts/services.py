@@ -18,6 +18,26 @@ from apps.audit import services as audit
 from .models import Role, RoleAssignment, ScopeType, User
 from .permissions import PERMISSIONS
 
+ScopeResolver = Callable[[str, str], list[tuple[str, str]]]
+_scope_resolvers: list[ScopeResolver] = []
+
+
+def register_scope_resolver(resolver: ScopeResolver) -> None:
+    """Let a module that knows the structure say which wider scopes contain a scope.
+
+    `resolver(scope_type, scope_id)` returns (scope_type, scope_id) pairs that contain it, for
+    example a section's offering, programme and department. academics registers one.
+    """
+    if resolver not in _scope_resolvers:
+        _scope_resolvers.append(resolver)
+
+
+def containing_scopes(scope_type: str, scope_id: uuid.UUID | str) -> set[tuple[str, str]]:
+    found: set[tuple[str, str]] = set()
+    for resolver in _scope_resolvers:
+        found.update(resolver(scope_type, str(scope_id)))
+    return found
+
 
 def _covers(
     assignment: RoleAssignment, scope_type: str | None, scope_id: uuid.UUID | str | None
@@ -25,14 +45,15 @@ def _covers(
     """Does this assignment's scope include the requested scope?
 
     A college-wide assignment covers everything in the college. Otherwise the scope must match
-    exactly. Containment between department, programme, offering and section (a department
-    head covering its sections) is added with the academic structure in v0.4.0.
+    exactly, or contain the requested scope (a department head covers the department's
+    programmes, offerings and sections) as reported by the registered resolvers.
     """
     if assignment.scope_type == ScopeType.COLLEGE:
         return True
     if scope_type is None or scope_id is None:
         return False
-    return assignment.scope_type == scope_type and str(assignment.scope_id) == str(scope_id)
+    held = (str(assignment.scope_type), str(assignment.scope_id))
+    return held == (scope_type, str(scope_id)) or held in containing_scopes(scope_type, scope_id)
 
 
 def has_permission(

@@ -15,6 +15,7 @@ dependencies = [
     "python-dotenv>=1.0",
     "argon2-cffi>=25.1.0",
     "django-csp>=4.0",
+    "openpyxl>=3.1.5",
 ]
 
 [dependency-groups]
@@ -26,7 +27,6 @@ dev = [
     "ruff>=0.6",
     "mypy>=1.11",
     "django-stubs>=5.1",
-    "openpyxl>=3.1.5",
 ]
 
 [tool.ruff]
