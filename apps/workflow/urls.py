@@ -7,6 +7,8 @@ app_name = "workflow"
 urlpatterns = [
     path("", views.inbox, name="inbox"),
     path("audit/", views.audit_log, name="audit"),
+    path("batch/<uuid:batch_id>/", views.batch_stage_page, name="batch"),
+    path("batch/<uuid:batch_id>/<str:action>/", views.batch_stage_action, name="batch_action"),
     path(
         "section/<uuid:section_id>/<uuid:assessment_id>/<str:action>/",
         views.section_action,

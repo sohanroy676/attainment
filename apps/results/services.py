@@ -17,17 +17,20 @@ from django.core.exceptions import ValidationError
 from django.db import connection, transaction
 from django.utils import timezone
 
-from apps.academics.models import CourseOffering, Programme, Section
+from apps.academics.models import Batch, CourseOffering, Programme, Section
 from apps.accounts.models import User
 from apps.assessments import services as papers
 from apps.audit import services as audit
 from apps.marks import services as marks
 from apps.methodology import services as methods
 from apps.outcomes import services as outcomes
-from apps.outcomes.models import CourseDefinitionVersion, Target
+from apps.outcomes.models import CourseDefinitionVersion, ProgrammeOutcome, Target
 from apps.roster.models import Enrolment
 from apps.tenancy.services import college_context, get_current_college_id
+from engine.batch import BatchCourse, BatchInput, batch_result_to_dict, run_batch
+from engine.compare import compare_values
 from engine.display import display
+from engine.gaps import Gap, below_target, weakest_questions
 from engine.hashing import result_to_dict
 from engine.model import CourseInput, OfferingInput, Override
 from engine.pipeline import run_offering
@@ -35,7 +38,14 @@ from engine.precision import decimal_text
 from engine.schema import MethodConfig
 from engine.trace import Trace
 
-from .models import CalculationRun, IndirectValue, ResultValue
+from .models import (
+    BatchIndirect,
+    BatchRun,
+    CalculationRun,
+    HistoricResult,
+    IndirectValue,
+    ResultValue,
+)
 
 log = logging.getLogger(__name__)
 
@@ -369,3 +379,503 @@ def offerings_with_runs() -> list[uuid.UUID]:
 
 def section_result(run: CalculationRun, section: Section) -> dict[str, Any] | None:
     return run.outputs.get("sections", {}).get(section.name)
+
+
+# batch roll-up ---------------------------------------------
+def batch_outcomes(programme: Programme) -> list[ProgrammeOutcome]:
+    """The POs then the PSOs of a programme (latest version of each code), in report order."""
+    newest: dict[str, ProgrammeOutcome] = {}
+    for row in ProgrammeOutcome.objects.filter(
+        programme=programme, kind__in=[ProgrammeOutcome.Kind.PO, ProgrammeOutcome.Kind.PSO]
+    ).order_by("version"):
+        newest[row.code] = row
+
+    def order(row: ProgrammeOutcome) -> tuple[bool, int, str]:
+        digits = "".join(ch for ch in row.code if ch.isdigit())
+        return (row.kind == ProgrammeOutcome.Kind.PSO, int(digits or 0), row.code)
+
+    return sorted(newest.values(), key=order)
+
+
+def batch_offerings(batch: Batch) -> list[CourseOffering]:
+    """Every offering that has a section of this batch (and its programme)."""
+    ids = (
+        Section.objects.filter(programme=batch.programme, batch=batch)
+        .values_list("offering_id", flat=True)
+        .distinct()
+    )
+    return list(
+        CourseOffering.objects.filter(pk__in=ids)
+        .select_related("course", "term")
+        .order_by("course__title", "term__academic_year__start_date", "term__number")
+    )
+
+
+def set_batch_indirect(
+    batch: Batch, values: dict[str, Decimal | str], note: str, actor: User
+) -> None:
+    """Enter indirect values per PO or PSO of a batch. They are "entered, not measured"."""
+    known = {o.code for o in batch_outcomes(batch.programme)}
+    for code, raw in values.items():
+        if code not in known:
+            raise ValidationError(f"{code} is not an outcome of this programme.")
+        if not 0 <= Decimal(raw) <= 10:
+            raise ValidationError(f"{code}: the value must be between 0 and 10.")
+    with transaction.atomic():
+        for code, raw in values.items():
+            row, created = BatchIndirect.objects.update_or_create(
+                batch=batch, outcome_code=code,
+                defaults={"value": Decimal(raw), "source_note": note, "entered_by": actor},
+            )  # fmt: skip
+            audit.record_model(
+                "created" if created else "updated", row, actor_id=actor.pk,
+                after=audit.snapshot(row), reason="indirect value entered, not measured",
+            )  # fmt: skip
+
+
+def _course_po_values(run: CalculationRun) -> dict[str, Decimal | None]:
+    return {v.key: (Decimal(v.value) if v.value else None) for v in run.values.filter(entity="po")}
+
+
+def calculate_batch(
+    batch: Batch,
+    actor: User | None = None,
+    include_unsigned: bool = False,
+    keep: bool = False,
+) -> BatchRun:
+    """Roll the course results of a programme batch up into PO and PSO values.
+
+    By default only signed course runs go in, and the ones left out are listed with the reason.
+    With `include_unsigned` the newest run of an unsigned course is used and marked as such.
+    The batch is provisional while anything is left out, unsigned, missing or stopped.
+    """
+    programme = batch.programme
+    outcome_rows = batch_outcomes(programme)
+    checklist: list[str] = []
+    offerings = batch_offerings(batch)
+    included: list[tuple[CourseOffering, CalculationRun]] = []
+    excluded: list[dict[str, str]] = []
+    for offering in offerings:
+        run = signed_run(offering, programme)
+        if run is None and include_unsigned:
+            run = latest_run(offering, programme)
+        if run is None:
+            reason = "no result yet" if include_unsigned else "not signed yet"
+            excluded.append(
+                {"offering": str(offering.pk), "name": offering.course.title, "reason": reason}
+            )
+            checklist.append(f"{offering.course.title} is left out: {reason}.")
+            continue
+        if not run.signed:
+            checklist.append(f"{offering.course.title} is included but not signed.")
+        if run.status != CalculationRun.Status.COMPLETE:
+            checklist.append(f"{offering.course.title} is included but its result is provisional.")
+        if (
+            Section.objects.filter(offering=offering, programme=programme)
+            .exclude(batch=batch)
+            .exists()
+        ):
+            checklist.append(
+                f"{offering.course.title} also has sections of another batch; its course "
+                "result counts in each batch it serves."
+            )
+        included.append((offering, run))
+
+    version = None
+    if offerings:
+        found = methods.method_for_offering(offerings[0], programme_id=programme.pk)
+        version = None if found is None else found[0]
+    if version is None and included:
+        version = included[0][1].method_version
+    outputs: dict[str, Any] = {"outcomes_order": [o.code for o in outcome_rows]}
+    trace: list[dict[str, Any]] = []
+    engine_version = input_hash = ""
+    status = "provisional"
+    if version is None:
+        checklist.append("No method is assigned to this programme (or none is active yet).")
+    elif not outcome_rows:
+        checklist.append("The programme has no POs or PSOs defined.")
+    else:
+        config = methods.parse_config(version.config_text)
+        targets = {
+            t.outcome.code: t.value
+            for t in Target.objects.filter(batch=batch).select_related("outcome")
+        }
+        indirect = {i.outcome_code: i.value for i in BatchIndirect.objects.filter(batch=batch)}
+        for row in outcome_rows:
+            if row.code not in targets:
+                checklist.append(f"No target has been set for {row.code}.")
+            if config.batch.indirect > 0 and row.code not in indirect:
+                checklist.append(f"No indirect value has been entered for {row.code}.")
+        batch_input = BatchInput(
+            courses=tuple(
+                BatchCourse(
+                    str(offering.pk),
+                    offering.course.title,
+                    offering.course.category,
+                    _course_po_values(run),
+                    run.outputs.get("attained"),
+                )  # fmt: skip
+                for offering, run in included
+            ),
+            outcomes=tuple(o.code for o in outcome_rows),
+            targets=targets,
+            indirect=indirect,
+        )
+        out = run_batch(config, batch_input)
+        engine_version, input_hash = out.result.engine_version, out.result.input_hash
+        outputs.update(batch_result_to_dict(out.result))
+        trace = _trace_json(out.trace)
+        if out.result.complete and not checklist:
+            status = "complete"
+    used = [
+        {
+            "offering": str(offering.pk), "name": offering.course.title,
+            "category": offering.course.category, "run": str(run.pk), "signed": run.signed,
+            "run_hash": run.content_hash or run.input_hash,
+        }
+        for offering, run in included
+    ]  # fmt: skip
+    with transaction.atomic():
+        BatchRun.objects.filter(batch=batch, is_latest=True, kept=False).delete()
+        BatchRun.objects.filter(batch=batch, is_latest=True).update(is_latest=False)
+        batch_run = BatchRun.objects.create(
+            batch=batch, method_version=version, include_unsigned=include_unsigned,
+            engine_version=engine_version, input_hash=input_hash, started_by=actor,
+            at=timezone.now(), status=status, kept=keep, outputs=outputs, trace=trace,
+            courses=used, excluded=excluded, checklist=checklist,
+        )  # fmt: skip
+        audit.record_model(
+            "created", batch_run, actor_id=None if actor is None else actor.pk,
+            after={"status": status, "kept": keep, "courses": len(used)},
+        )  # fmt: skip
+    return batch_run
+
+
+def latest_batch_run(batch: Batch) -> BatchRun | None:
+    return BatchRun.objects.filter(batch=batch, is_latest=True).first()
+
+
+def set_batch_targets(batch: Batch, values: dict[str, Decimal | str], actor: User) -> None:
+    """Set the target of each named PO or PSO for a batch (one value each, 0 to 10)."""
+    wanted = {o.code: o for o in batch_outcomes(batch.programme)}
+    for code in values:
+        if code not in wanted:
+            raise ValidationError(f"{code} is not an outcome of this programme.")
+    with transaction.atomic():
+        for code, raw in values.items():
+            outcomes.set_target(raw, outcome=wanted[code], batch=batch, actor=actor)
+
+
+def batch_inputs(batch: Batch) -> list[tuple[str, str, str]]:
+    """(outcome code, target text, indirect text) for every PO and PSO of the batch."""
+    targets = {
+        t.outcome.code: t.value
+        for t in Target.objects.filter(batch=batch).select_related("outcome")
+    }
+    indirect = {i.outcome_code: i.value for i in BatchIndirect.objects.filter(batch=batch)}
+    return [
+        (
+            o.code,
+            "" if o.code not in targets else str(targets[o.code].normalize()),
+            "" if o.code not in indirect else str(indirect[o.code].normalize()),
+        )
+        for o in batch_outcomes(batch.programme)
+    ]
+
+
+def batch_content_hash(run: BatchRun) -> str:
+    """SHA-256 over everything a batch signature vouches for: the inputs, the course runs that
+    went in (and the ones left out), the method version and the outputs."""
+    payload = {
+        "input_hash": run.input_hash,
+        "engine_version": run.engine_version,
+        "method_hash": "" if run.method_version is None else run.method_version.content_hash,
+        "courses": run.courses,
+        "excluded": run.excluded,
+        "outputs": run.outputs,
+    }
+    text = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
+    return hashlib.sha256(text.encode()).hexdigest()
+
+
+def seal_batch(run: BatchRun, actor: User) -> BatchRun:
+    """Freeze a kept, complete batch run at sign-off. After this the database refuses changes."""
+    if run.signed:
+        raise ValidationError("This batch result is already signed.")
+    if not run.kept:
+        raise ValidationError("Only a kept batch result can be signed.")
+    if run.status != "complete":
+        raise ValidationError("A batch result that is not complete cannot be signed.")
+    if run.include_unsigned:
+        raise ValidationError("A batch result with unsigned courses cannot be signed.")
+    run.signed = True
+    run.content_hash = batch_content_hash(run)
+    run.save(update_fields=["signed", "content_hash", "updated_at"])
+    audit.record_model(
+        "updated", run, actor_id=actor.pk, after={"signed": True, "content_hash": run.content_hash}
+    )
+    return run
+
+
+def signed_batch_run(batch: Batch) -> BatchRun | None:
+    """The newest signed batch run, or None."""
+    return BatchRun.objects.filter(batch=batch, signed=True).order_by("-at").first()
+
+
+def batch_differs_from_signed(batch: Batch) -> bool:
+    """True when the current batch result no longer matches the signed one."""
+    signed = signed_batch_run(batch)
+    latest = latest_batch_run(batch)
+    if signed is None or latest is None or latest.pk == signed.pk:
+        return False
+    return latest.input_hash != signed.input_hash
+
+
+# earlier batches and the old workbook (design 8.13) ---------
+def store_historic(
+    batch: Batch,
+    values: dict[tuple[str, str], Decimal],
+    source: Any,
+    actor: User | None = None,
+) -> int:
+    """Store PO values typed in an old workbook for a batch: (kind, outcome code) -> value.
+
+    The values for the kinds in `values` are replaced as a whole (the audit log keeps the old
+    ones). Returns how many values were stored.
+    """
+    known = {o.code for o in batch_outcomes(batch.programme)}
+    kinds = {kind for kind, _code in values}
+    for kind, code in values:
+        if kind not in HistoricResult.Kind.values:
+            raise ValidationError(f"{kind} is not a kind of earlier result.")
+        if code not in known:
+            raise ValidationError(f"{code} is not an outcome of this programme.")
+    for (_kind, code), value in values.items():
+        if not 0 <= value <= 10:
+            raise ValidationError(f"{code}: the value {value} must be between 0 and 10.")
+    actor_id = None if actor is None else actor.pk
+    with transaction.atomic():
+        for old in HistoricResult.objects.filter(batch=batch, kind__in=kinds):
+            audit.record_model(
+                "deleted", old, actor_id=actor_id, before=audit.snapshot(old),
+                reason="replaced by a new upload",
+            )  # fmt: skip
+            old.delete()
+        for (kind, code), value in sorted(values.items()):
+            row = HistoricResult.objects.create(
+                batch=batch, kind=kind, key=code, value=decimal_text(value) or "", source=source
+            )
+            audit.record_model("created", row, actor_id=actor_id, after=audit.snapshot(row))
+    return len(values)
+
+
+def historic_values(batch: Batch, kind: str) -> dict[str, Decimal]:
+    return {h.key: Decimal(h.value) for h in HistoricResult.objects.filter(batch=batch, kind=kind)}
+
+
+def earlier_batches(batch: Batch, count: int = 2) -> list[Batch]:
+    """The `count` batches of the same programme that finished before this one, oldest first."""
+    found = Batch.objects.filter(
+        programme=batch.programme, start_year__lt=batch.start_year
+    ).order_by("-start_year")[:count]
+    return list(reversed(list(found)))
+
+
+@dataclass
+class BatchColumn:
+    batch: Batch
+    source: str  # "signed", "imported", "calculated", "provisional" or "none"
+    values: dict[str, str | None] = field(default_factory=dict)  # code -> shown text
+
+
+def _run_totals(run: BatchRun, codes: list[str]) -> dict[str, str | None]:
+    config = (
+        None if run.method_version is None else methods.parse_config(run.method_version.config_text)
+    )
+    shown: dict[str, str | None] = {}
+    for code in codes:
+        raw = run.outputs.get("outcomes", {}).get(code)
+        total = None if raw is None else raw[3]
+        shown[code] = (
+            None
+            if total is None or config is None
+            else str(display(config.precision, "batch", Decimal(total)))
+        )
+    return shown
+
+
+def comparison_columns(batch: Batch) -> list[BatchColumn]:
+    """PO and PSO totals of this batch and the two before it, side by side.
+
+    This batch shows its newest result. An earlier batch shows its signed result if it has one,
+    else the values imported from its workbook, else its newest calculated result.
+    """
+    codes = [o.code for o in batch_outcomes(batch.programme)]
+    columns: list[BatchColumn] = []
+    for earlier in earlier_batches(batch):
+        signed = signed_batch_run(earlier)
+        imported = historic_values(earlier, HistoricResult.Kind.PO_TOTAL)
+        latest = latest_batch_run(earlier)
+        if signed is not None:
+            columns.append(BatchColumn(earlier, "signed", _run_totals(signed, codes)))
+        elif imported:
+            columns.append(
+                BatchColumn(earlier, "imported", {c: _text(imported.get(c)) for c in codes})
+            )
+        elif latest is not None:
+            columns.append(BatchColumn(earlier, "provisional", _run_totals(latest, codes)))
+        else:
+            columns.append(BatchColumn(earlier, "none", dict.fromkeys(codes)))
+    run = latest_batch_run(batch)
+    if run is None:
+        columns.append(BatchColumn(batch, "none", dict.fromkeys(codes)))
+    else:
+        label = (
+            "signed" if run.signed else "calculated" if run.status == "complete" else "provisional"
+        )
+        columns.append(BatchColumn(batch, label, _run_totals(run, codes)))
+    return columns
+
+
+def _text(value: Decimal | None) -> str | None:
+    return None if value is None else decimal_text(value)
+
+
+@dataclass
+class SideBySideRow:
+    code: str
+    kind: str
+    computed: str
+    imported: str
+    difference: str
+    differs: bool
+    note: str
+
+
+def compare_with_imported(batch: Batch) -> list[SideBySideRow]:
+    """The newest computed PO values against the ones typed in the batch's old workbook.
+
+    A row differs when the two values differ at the method's batch display precision.
+    """
+    run = latest_batch_run(batch)
+    if run is None or run.method_version is None:
+        return []
+    config = methods.parse_config(run.method_version.config_text)
+    rows: list[SideBySideRow] = []
+    for kind, position in ((HistoricResult.Kind.PO_DIRECT, 1), (HistoricResult.Kind.PO_TOTAL, 3)):
+        imported = historic_values(batch, kind)
+        if not imported:
+            continue
+        for code in run.outputs.get("outcomes_order", []):
+            raw = run.outputs.get("outcomes", {}).get(code)
+            computed = None if raw is None or raw[position] is None else Decimal(raw[position])
+            result = compare_values(config.precision, "batch", computed, imported.get(code))
+
+            def shown(value: Decimal | None) -> str:
+                return "-" if value is None else str(display(config.precision, "batch", value))
+
+            rows.append(
+                SideBySideRow(
+                    code,
+                    str(HistoricResult.Kind(kind).label),
+                    shown(result.computed),
+                    "-" if result.imported is None else decimal_text(result.imported) or "-",
+                    "-" if result.difference is None else decimal_text(result.difference) or "0",
+                    result.differs,
+                    result.note,
+                )  # fmt: skip
+            )
+    return rows
+
+
+# the gap view (design 8.9) ---------------------------------
+@dataclass
+class GapRow:
+    key: str
+    value: str
+    target: str
+    shortfall: str
+
+
+@dataclass
+class QuestionRow:
+    tool: str
+    part: str
+    co: str
+    passed: int
+    denominator: int
+    percent: str
+    small_group: bool
+
+
+@dataclass
+class CourseGaps:
+    run: CalculationRun
+    cos: list[GapRow]
+    questions: list[QuestionRow]
+    complete: bool
+
+
+def _config_of(run: CalculationRun | BatchRun) -> MethodConfig | None:
+    return (
+        None if run.method_version is None else methods.parse_config(run.method_version.config_text)
+    )
+
+
+def _gap_rows(gaps: list[Gap], config: MethodConfig, level: str) -> list[GapRow]:
+    return [
+        GapRow(
+            g.key,
+            str(display(config.precision, level, g.value)),
+            str(g.target.normalize()),
+            str(display(config.precision, level, g.shortfall)),
+        )
+        for g in gaps
+    ]
+
+
+def course_gaps(
+    offering: CourseOffering, programme: Programme, question_limit: int = 10
+) -> CourseGaps | None:
+    """COs under the course target and the weakest question parts, from the newest run."""
+    run = latest_run(offering, programme)
+    config = None if run is None else _config_of(run)
+    if run is None or config is None:
+        return None
+    course = run.outputs.get("course", {})
+    target = course.get("target")
+    final = {
+        co: (None if v[0] is None else Decimal(v[0])) for co, v in course.get("final", {}).items()
+    }
+    targets = {} if target is None else dict.fromkeys(final, Decimal(target))
+    cos = _gap_rows(below_target(final, targets, config.precision, "co"), config, "co")
+    entries = [e for trace in run.trace.get("sections", {}).values() for e in trace]
+    questions = [
+        QuestionRow(
+            q.tool,
+            q.part,
+            q.co or "",
+            q.passed,
+            q.denominator,
+            "-" if q.percent is None else str(display(config.precision, "question_pct", q.percent)),
+            q.small_group,
+        )  # fmt: skip
+        for q in weakest_questions(entries, question_limit)
+    ]
+    return CourseGaps(run, cos, questions, run.status == CalculationRun.Status.COMPLETE)
+
+
+def batch_gaps(batch: Batch) -> tuple[BatchRun, list[GapRow]] | None:
+    """The POs and PSOs whose batch total is under their target, from the newest batch run."""
+    run = latest_batch_run(batch)
+    config = None if run is None else _config_of(run)
+    if run is None or config is None:
+        return None
+    totals: dict[str, Decimal | None] = {}
+    targets: dict[str, Decimal] = {}
+    for code, raw in run.outputs.get("outcomes", {}).items():
+        totals[code] = None if raw[3] is None else Decimal(raw[3])
+        if raw[4] is not None:
+            targets[code] = Decimal(raw[4])
+    return run, _gap_rows(below_target(totals, targets, config.precision, "batch"), config, "batch")

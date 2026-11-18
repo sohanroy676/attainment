@@ -2,6 +2,15 @@
 
 ## Unreleased (built, not yet released; manual tests and golden data pending)
 
+### v0.9.0 - department, batch and quality loop (built, not yet released)
+- Batch roll-up from signed course runs per programme batch (PO and PSO direct, indirect, total, status, core and non-core counts), recording the course runs used and the ones left out; indirect values and targets per outcome; a switch to include unsigned courses (marked, provisional).
+- Batch sign-off: prepared (IQAC), approved (HoD), signed (principal); the signed batch run is frozen by the database; reopening needs a reason and starts a new cycle.
+- Earlier batches: PO values from an old workbook (CSV or Excel, checked whole, file kept), three-batch comparison, and a side-by-side check of computed against old values at the method's shown precision (`engine/compare.py`).
+- Gap view: COs under the course target, the weakest question parts (pooled over sections), POs and PSOs under their batch target (`engine/gaps.py`).
+- Quality loop: observations (drafted from the gap view), action plans that carry to the course's later offerings, actions taken with dates and proof files (PDF, PNG, JPEG, 5 MB each, checked by their bytes, per-college cap).
+- Speed: a batch of 100 courses by 15 outcomes rolls up and renders in under 3 s. Isolation sweep over every new page.
+- Not built: target-revision proposal, Action Taken Report (v0.10.0), course-level comparison with old workbooks, batch tasks in the inbox, editing of observations and plans.
+
 ### v0.8.0 - workflow and governance (built and verified locally)
 - Fix: a department-scoped HoD can now approve a pass-mark override for their own offerings (the check was college-wide only).
 - Section marks: draft, submitted, accepted or returned (reason). Course result: reviewed, approved, signed, reopened (reason, new cycle). Table-driven state machine.

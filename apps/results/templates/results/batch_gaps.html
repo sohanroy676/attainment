@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Outcomes below target - Attainment{% endblock %}
+{% block content %}
+<h1>{{ batch.programme.name }}, batch {{ batch.name }}: outcomes below target</h1>
+<p><a href="{% url 'results:batch' batch.pk %}">Batch result page</a></p>
+{% if run %}
+{% if run.status != 'complete' %}<p><strong>This batch result is provisional</strong>, so the gaps may change.</p>{% endif %}
+{% if rows %}
+<table>
+  <thead><tr><th>Outcome</th><th>Total</th><th>Target</th><th>Short by</th></tr></thead>
+  <tbody>{% for g in rows %}<tr><th scope="row">{{ g.key }}</th><td>{{ g.value }}</td><td>{{ g.target }}</td><td>{{ g.shortfall }}</td></tr>{% endfor %}</tbody>
+</table>
+{% else %}
+<p>No PO or PSO with a value and a target is below its target.</p>
+{% endif %}
+{% else %}
+<p>There is no batch result yet.</p>
+{% endif %}
+{% endblock %}

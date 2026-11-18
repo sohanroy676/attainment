@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Upload earlier values - Attainment{% endblock %}
+{% block content %}
+<h1>Upload earlier values</h1>
+<p>{{ batch.programme.name }}, batch {{ batch.name }}</p>
+{% if messages %}<ul class="errorlist">{% for message in messages %}<li>{{ message }}</li>{% endfor %}</ul>{% endif %}
+<p>A .csv or .xlsx file whose first row is <strong>Outcome</strong> followed by <strong>Direct</strong> and/or <strong>Total</strong>.
+  Each row is one PO or PSO (for example PO1) and its value from the old workbook. The file is checked completely before anything is saved, and it is kept as the source of these values. A new upload replaces the earlier values of the same column.</p>
+<form method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+  <p><label for="file">File</label><input id="file" type="file" name="file" accept=".csv,.xlsx"></p>
+  <button type="submit">Upload</button>
+</form>
+<p><a href="{% url 'results:batch_compare' batch.pk %}">Back to the comparison</a></p>
+{% endblock %}

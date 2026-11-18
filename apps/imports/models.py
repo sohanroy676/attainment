@@ -17,6 +17,7 @@ class ImportBatch(TenantRecord):
         ROSTER = "roster", "Roster"
         MARKS = "marks", "Marks"
         SCRIPTS = "scripts", "Script mapping"
+        HISTORIC = "historic", "Earlier batch values"
 
     class Status(models.TextChoices):
         PREVIEWED = "previewed", "Previewed"

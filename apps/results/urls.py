@@ -5,7 +5,12 @@ from . import views
 app_name = "results"
 
 urlpatterns = [
+    path("batch/<uuid:batch_id>/", views.batch_page, name="batch"),
+    path("batch/<uuid:batch_id>/compare/", views.batch_compare_page, name="batch_compare"),
+    path("batch/<uuid:batch_id>/gaps/", views.batch_gaps_page, name="batch_gaps"),
+    path("batch/<uuid:batch_id>/inputs/", views.batch_inputs_page, name="batch_inputs"),
     path("<uuid:offering_id>/", views.course_page, name="course"),
+    path("<uuid:offering_id>/gaps/", views.course_gaps_page, name="gaps"),
     path("<uuid:offering_id>/recalculate/", views.recalculate, name="recalculate"),
     path("<uuid:offering_id>/section/<uuid:section_id>/", views.section_page, name="section"),
     path("<uuid:offering_id>/indirect/", views.indirect_page, name="indirect"),

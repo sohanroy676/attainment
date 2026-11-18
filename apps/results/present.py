@@ -9,7 +9,7 @@ from apps.methodology import services as methods
 from engine.display import display
 from engine.schema import MethodConfig
 
-from .models import CalculationRun
+from .models import BatchRun, CalculationRun
 
 
 @dataclass
@@ -136,3 +136,84 @@ def present(run: CalculationRun, section_name: str | None = None) -> Presented:
         target=data["target"] or "",
         indirect_label="entered, not measured; direct-only is shown above",
     )
+
+
+# batch page -------------------------------------------------
+@dataclass
+class BatchRow:
+    code: str
+    courses: int
+    direct: str
+    indirect: str
+    total: str
+    unrounded: str
+    target: str
+    status: str  # Attained, Not attained, No value, Stopped for review
+    attained: bool | None
+    flag: str
+
+
+@dataclass
+class BatchPresented:
+    run: "BatchRun"
+    method_name: str
+    complete: bool
+    rows: list[BatchRow]
+    counts: list[tuple[str, int, int, int]]  # category label, attained, not attained, no result
+    courses: list[dict[str, Any]]
+    excluded: list[dict[str, Any]]
+    checklist: list[str]
+    flags: list[str]
+    compared_with: str
+
+
+CATEGORY_LABELS = {"core": "Core", "non_core": "Non-core"}
+
+
+def present_batch(run: "BatchRun") -> BatchPresented:
+    """The stored batch result as rows. Rounding follows the method's batch precision."""
+    config = (
+        None if run.method_version is None else methods.parse_config(run.method_version.config_text)
+    )
+    outputs = run.outputs
+    rows: list[BatchRow] = []
+    for code in outputs.get("outcomes_order", []):
+        raw = outputs.get("outcomes", {}).get(code)
+        if raw is None or config is None:
+            rows.append(BatchRow(code, 0, "-", "-", "-", "", "-", "No value", None, ""))
+            continue
+        count, direct, indirect, total, target, attained, status, flag = raw
+        label = {
+            "missing": "No value",
+            "blocked": "Stopped for review",
+        }.get(
+            status, "No value" if attained is None else "Attained" if attained else "Not attained"
+        )
+        rows.append(
+            BatchRow(
+                code, count,
+                _batch_shown(config, direct), _batch_shown(config, indirect),
+                _batch_shown(config, total), "" if total is None else total,
+                "-" if target is None else target, label, attained, flag or "",
+            )
+        )  # fmt: skip
+    counts = [
+        (CATEGORY_LABELS.get(category, category), a, n, x)
+        for category, (a, n, x) in outputs.get("counts", {}).items()
+    ]
+    return BatchPresented(
+        run=run,
+        method_name="" if run.method_version is None else run.method_version.method.name,
+        complete=run.status == "complete",
+        rows=rows,
+        counts=counts,
+        courses=list(run.courses),
+        excluded=list(run.excluded),
+        checklist=list(run.checklist),
+        flags=list(outputs.get("flags", [])),
+        compared_with="" if config is None else config.precision.compare_with,
+    )
+
+
+def _batch_shown(config: MethodConfig, text: str | None) -> str:
+    return "-" if text is None else str(display(config.precision, "batch", Decimal(text)))

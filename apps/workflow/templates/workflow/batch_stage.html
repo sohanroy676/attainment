@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Batch approval - Attainment{% endblock %}
+{% block content %}
+<h1>{{ batch.programme.name }}, batch {{ batch.name }}: approval</h1>
+<p><a href="{% url 'results:batch' batch.pk %}">Batch result page</a></p>
+{% if messages %}<ul>{% for message in messages %}<li>{{ message }}</li>{% endfor %}</ul>{% endif %}
+{% if differs %}
+<p><strong>Differs from signed:</strong> the current batch result no longer matches the signed version
+  (signed {{ signed_run.at|date:"Y-m-d H:i" }}).</p>
+{% endif %}
+<p>Status: <strong>{% if stage %}{{ stage.get_status_display }} (cycle {{ stage.cycle }}){% else %}Not yet prepared{% endif %}</strong></p>
+<p>Only signed course results go into a batch result that is signed.</p>
+
+{% if not stage or stage.status == 'reopened' or stage.status == 'prepared' %}{% if may.prepare %}
+<form method="post" action="{% url 'workflow:batch_action' batch.pk 'prepare' %}">{% csrf_token %}
+  <button type="submit">{% if stage.status == 'prepared' %}Prepare again{% else %}Prepare for approval{% endif %}</button></form>
+{% endif %}{% endif %}
+{% if stage.status == 'prepared' and may.approve %}
+<form method="post" action="{% url 'workflow:batch_action' batch.pk 'approve' %}">{% csrf_token %}
+  <button type="submit">Approve</button></form>
+{% endif %}
+{% if stage.status == 'approved' and may.sign %}
+<form method="post" action="{% url 'workflow:batch_action' batch.pk 'sign' %}">{% csrf_token %}
+  <button type="submit">Sign</button></form>
+{% endif %}
+{% if stage.status == 'approved' or stage.status == 'signed' %}{% if may.reopen %}
+<form method="post" action="{% url 'workflow:batch_action' batch.pk 'reopen' %}">{% csrf_token %}
+  <input name="reason" placeholder="Reason for reopening" required><button type="submit">Reopen</button></form>
+{% endif %}{% endif %}
+
+<h2>Approvals and signatures</h2>
+<ul>
+  {% for sig in signatures %}<li>Cycle {{ sig.cycle }}: {{ sig.get_kind_display }} by {{ sig.signer_name }} ({{ sig.role }}) at {{ sig.at|date:"Y-m-d H:i" }}, hash {{ sig.content_hash|slice:":12" }}</li>
+  {% empty %}<li>None yet.</li>{% endfor %}
+</ul>
+{% if reopenings %}
+<h2>Reopened</h2>
+<ul>{% for r in reopenings %}<li>{{ r.at|date:"Y-m-d H:i" }}: {{ r.reason }}</li>{% endfor %}</ul>
+{% endif %}
+{% endblock %}

@@ -12,7 +12,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.utils import timezone
 
-from apps.academics.models import CourseOffering, Programme, Section
+from apps.academics.models import Batch, CourseOffering, Programme, Section
 from apps.academics.services import sections_visible_to
 from apps.accounts.models import RoleAssignment, ScopeType, User
 from apps.accounts.permissions import PERMISSIONS
@@ -23,10 +23,25 @@ from apps.audit import services as audit
 from apps.marks import services as marks
 from apps.marks.models import MarkSheetRow
 from apps.results import services as results
-from apps.results.models import CalculationRun
+from apps.results.models import BatchRun, CalculationRun
 
-from .machine import LOCKED_STAGES, SECTION_MOVES, SEE_SUBMIT_PERMISSION, STAGE_MOVES
-from .models import Reopening, ResultStage, SectionState, Signature, SupportGrant
+from .machine import (
+    BATCH_MOVES,
+    LOCKED_STAGES,
+    SECTION_MOVES,
+    SEE_SUBMIT_PERMISSION,
+    STAGE_MOVES,
+)
+from .models import (
+    BatchReopening,
+    BatchSignature,
+    BatchStage,
+    Reopening,
+    ResultStage,
+    SectionState,
+    Signature,
+    SupportGrant,
+)
 
 SS = SectionState.Status
 RS = ResultStage.Status
@@ -250,6 +265,133 @@ def reopen(offering: CourseOffering, programme: Programme, actor: User, reason: 
         if not still_locked:
             papers.unlock_offering(offering, actor, reason.strip())
         results.calculate(offering, programme, actor=actor)
+        audit.record_model(
+            "updated", stage, actor_id=actor.pk, before=before, after=audit.snapshot(stage),
+            reason=reason.strip(),
+        )  # fmt: skip
+    return stage
+
+
+# batch results: prepared -> approved (HoD) -> signed (principal) ---------------------------
+def batch_stage_of(batch: Batch) -> BatchStage | None:
+    return BatchStage.objects.filter(batch=batch).first()
+
+
+def _batch_role(actor: User, permission: str, batch: Batch) -> str:
+    """The role through which the actor holds `permission` over the batch's programme."""
+    for assignment in RoleAssignment.objects.filter(user_id=actor.pk).order_by("role"):
+        if permission in PERMISSIONS.get(assignment.role, frozenset()) and has_permission(
+            actor, permission, ScopeType.PROGRAMME, batch.programme_id
+        ):
+            return str(assignment.role)
+    return ""
+
+
+def _batch_move(
+    batch: Batch, action: str, actor: User, reason: str
+) -> tuple[BatchStage | None, str]:
+    stage = BatchStage.objects.select_for_update().filter(batch=batch).first()
+    current = None if stage is None else stage.status
+    move = BATCH_MOVES.get((current, action))
+    if move is None:
+        where = "not yet prepared" if current is None else current
+        raise ValidationError(f"A batch result that is {where} cannot be {action}d.")
+    if not has_permission(actor, move.permission, ScopeType.PROGRAMME, batch.programme_id):
+        raise PermissionDenied(f"You may not {action} this batch result.")
+    if move.reason_required and not reason.strip():
+        raise ValidationError(f"A reason is required to {action} a batch result.")
+    return stage, move.to
+
+
+def _record_batch_signature(
+    stage: BatchStage, kind: str, run: BatchRun, actor: User, role: str
+) -> BatchSignature:
+    signature = BatchSignature.objects.create(
+        stage=stage, cycle=stage.cycle, kind=kind, run=run, user=actor,
+        signer_name=actor.full_name or actor.username, role=role, at=timezone.now(),
+        content_hash=results.batch_content_hash(run),
+    )  # fmt: skip
+    audit.record_model("created", signature, actor_id=actor.pk, after=audit.snapshot(signature))
+    return signature
+
+
+def prepare_batch(batch: Batch, actor: User) -> BatchStage:
+    """IQAC prepares the batch result: a kept run from signed courses only. A result that is
+    still provisional (left-out courses, missing targets or indirect values) cannot be prepared."""
+    with transaction.atomic():
+        stage, target = _batch_move(batch, "prepare", actor, "")
+        run = results.calculate_batch(batch, actor=actor, include_unsigned=False, keep=True)
+        if run.status != "complete":
+            raise ValidationError(["The batch result is incomplete:", *run.checklist])
+        before = None if stage is None else audit.snapshot(stage)
+        if stage is None:
+            stage = BatchStage(batch=batch, cycle=1)
+        stage.status, stage.run = target, run
+        stage.save()
+        audit.record_model(
+            "created" if before is None else "updated", stage, actor_id=actor.pk,
+            before=before, after=audit.snapshot(stage), reason="batch result prepared",
+        )  # fmt: skip
+    return stage
+
+
+def approve_batch(batch: Batch, actor: User) -> BatchStage:
+    """The HoD approves the prepared batch result."""
+    with transaction.atomic():
+        stage, target = _batch_move(batch, "approve", actor, "")
+        if stage is None or stage.run is None:
+            raise ValidationError("There is no prepared batch result to approve.")
+        before = audit.snapshot(stage)
+        stage.status = target
+        stage.save()
+        _record_batch_signature(
+            stage, BatchSignature.Kind.APPROVAL, stage.run, actor,
+            _batch_role(actor, "workflow.approve", batch),
+        )  # fmt: skip
+        audit.record_model(
+            "updated", stage, actor_id=actor.pk, before=before, after=audit.snapshot(stage),
+            reason="batch result approved",
+        )  # fmt: skip
+    return stage
+
+
+def sign_batch(batch: Batch, actor: User) -> BatchStage:
+    """The principal signs: the approved batch run is sealed and the database refuses changes."""
+    with transaction.atomic():
+        stage, target = _batch_move(batch, "sign", actor, "")
+        if stage is None or stage.run is None:
+            raise ValidationError("There is no approved batch result to sign.")
+        run = results.seal_batch(stage.run, actor)
+        before = audit.snapshot(stage)
+        stage.status = target
+        stage.save()
+        _record_batch_signature(
+            stage, BatchSignature.Kind.SIGNATURE, run, actor,
+            _batch_role(actor, "workflow.sign", batch),
+        )  # fmt: skip
+        audit.record_model(
+            "updated", stage, actor_id=actor.pk, before=before, after=audit.snapshot(stage),
+            reason="batch result signed",
+        )  # fmt: skip
+    return stage
+
+
+def reopen_batch(batch: Batch, actor: User, reason: str) -> BatchStage:
+    """HoD or IQAC reopens an approved or signed batch result with a reason. A new signature
+    cycle starts and a fresh run is stored; the signed run stays readable."""
+    with transaction.atomic():
+        stage, target = _batch_move(batch, "reopen", actor, reason)
+        if stage is None:
+            raise ValidationError("There is no batch result to reopen.")
+        before = audit.snapshot(stage)
+        BatchReopening.objects.create(
+            stage=stage, from_cycle=stage.cycle, from_status=stage.status,
+            reason=reason.strip(), by=actor, at=timezone.now(),
+        )  # fmt: skip
+        stage.status, stage.run = target, None
+        stage.cycle += 1
+        stage.save()
+        results.calculate_batch(batch, actor=actor)
         audit.record_model(
             "updated", stage, actor_id=actor.pk, before=before, after=audit.snapshot(stage),
             reason=reason.strip(),

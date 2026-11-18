@@ -8,7 +8,7 @@ a run that is kept (snapshot) stays forever.
 from django.conf import settings
 from django.db import models
 
-from apps.academics.models import CourseOffering, Programme
+from apps.academics.models import Batch, CourseOffering, Programme
 from apps.methodology.models import MethodVersion
 from apps.tenancy.models import TenantRecord
 
@@ -82,4 +82,86 @@ class ResultValue(TenantRecord):
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=["run", "entity", "key"], name="result_value_unique")
+        ]
+
+
+class BatchIndirect(TenantRecord):
+    """An indirect value for one programme outcome of a batch, entered by IQAC (design 8.10a).
+    Like the course-level one it is "entered, not measured"."""
+
+    batch = models.ForeignKey(Batch, on_delete=models.CASCADE, related_name="+")
+    outcome_code = models.CharField(max_length=10)  # PO1, PSO2
+    value = models.DecimalField(max_digits=5, decimal_places=3)
+    source_note = models.CharField(max_length=200, blank=True)
+    entered_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["batch", "outcome_code"], name="batch_indirect_unique"),
+            models.CheckConstraint(
+                condition=models.Q(value__gte=0, value__lte=10), name="batch_indirect_range"
+            ),
+        ]
+
+
+class BatchRun(TenantRecord):
+    """A batch roll-up: the PO and PSO values of one programme batch, built from course runs.
+
+    `courses` records exactly which course runs went in (run id, hash, signed or not), and
+    `excluded` the ones left out and why, so the result can always be traced back.
+    """
+
+    batch = models.ForeignKey(Batch, on_delete=models.CASCADE, related_name="+")
+    method_version = models.ForeignKey(
+        MethodVersion, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    include_unsigned = models.BooleanField(default=False)
+    engine_version = models.CharField(max_length=20, blank=True)
+    input_hash = models.CharField(max_length=64, blank=True)
+    started_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    at = models.DateTimeField()
+    status = models.CharField(
+        max_length=12, choices=CalculationRun.Status.choices, default="provisional"
+    )
+    is_latest = models.BooleanField(default=True)
+    kept = models.BooleanField(default=False)
+    signed = models.BooleanField(default=False)  # frozen at sign-off: the database refuses changes
+    content_hash = models.CharField(max_length=64, blank=True)  # set when signed
+    outputs = models.JSONField(default=dict)
+    trace = models.JSONField(default=list)
+    courses = models.JSONField(default=list)
+    excluded = models.JSONField(default=list)
+    checklist = models.JSONField(default=list)
+
+    audit_exclude = ("outputs", "trace", "courses", "excluded", "checklist")  # noqa: RUF012
+
+    class Meta:
+        ordering = ["-at"]
+        indexes = [models.Index(fields=["batch", "is_latest"])]
+
+
+class HistoricResult(TenantRecord):
+    """A PO or PSO value of an earlier batch (or of a batch's old workbook) that was typed in a
+    workbook, not calculated here (design 5.5, 8.13). It feeds the three-batch comparison and the
+    side-by-side check against the computed value. The uploaded file is kept as `source`."""
+
+    class Kind(models.TextChoices):
+        PO_DIRECT = "po_direct", "PO direct"
+        PO_TOTAL = "po_total", "PO total"
+
+    batch = models.ForeignKey(Batch, on_delete=models.CASCADE, related_name="+")
+    kind = models.CharField(max_length=10, choices=Kind.choices)
+    key = models.CharField(max_length=10)  # PO1, PSO2
+    value = models.CharField(max_length=40)  # exact decimal text, as in the file
+    source = models.ForeignKey(
+        "imports.ImportBatch", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["batch", "kind", "key"], name="historic_unique")
         ]

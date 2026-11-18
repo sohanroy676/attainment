@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Batch result - Attainment{% endblock %}
+{% block content %}
+<h1>{{ batch.programme.name }}, batch {{ batch.name }}</h1>
+{% if messages %}<ul>{% for message in messages %}<li>{{ message }}</li>{% endfor %}</ul>{% endif %}
+<p><a href="{% url 'workflow:batch' batch.pk %}">Approval status</a> | <a href="{% url 'results:batch_compare' batch.pk %}">Compare with earlier batches and old workbooks</a> | <a href="{% url 'results:batch_gaps' batch.pk %}">Outcomes below target</a>
+{% if can_prepare %} | <a href="{% url 'results:batch_inputs' batch.pk %}">Targets and indirect values</a>{% endif %}</p>
+{% if p %}
+<p>Method: {{ p.method_name }}. Status: {% if p.complete %}Complete{% else %}Provisional{% endif %}.
+  Engine {{ p.run.engine_version }}, input {{ p.run.input_hash|slice:":12" }}.
+  {% if p.compared_with %}Targets are compared with the {{ p.compared_with }} value.{% endif %}</p>
+{% if p.run.include_unsigned %}<p><strong>This result includes courses that are not signed yet.</strong></p>{% endif %}
+{% if p.checklist %}
+<h2>Before this is complete</h2>
+<ul>{% for line in p.checklist %}<li>{{ line }}</li>{% endfor %}</ul>
+{% endif %}
+<table>
+  <caption>PO and PSO attainment (indirect values are entered, not measured)</caption>
+  <thead><tr><th>Outcome</th><th>Courses</th><th>Direct</th><th>Indirect</th><th>Total</th><th>Target</th><th>Status</th></tr></thead>
+  <tbody>
+  {% for r in p.rows %}
+    <tr>
+      <th scope="row">{{ r.code }}</th><td>{{ r.courses }}</td><td>{{ r.direct }}</td><td>{{ r.indirect }}</td>
+      <td title="Unrounded: {{ r.unrounded }}">{{ r.total }}</td><td>{{ r.target }}</td>
+      <td>{{ r.status }}{% if r.flag %} ({{ r.flag }}){% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% if p.counts %}
+<table>
+  <caption>Courses by category</caption>
+  <thead><tr><th>Category</th><th>Attained</th><th>Not attained</th><th>No result</th></tr></thead>
+  <tbody>{% for label, a, n, x in p.counts %}<tr><th scope="row">{{ label }}</th><td>{{ a }}</td><td>{{ n }}</td><td>{{ x }}</td></tr>{% endfor %}</tbody>
+</table>
+{% endif %}
+<h2>Courses used</h2>
+<ul>
+  {% for c in p.courses %}<li><a href="{% url 'results:course' c.offering %}">{{ c.name }}</a> ({{ c.category }}){% if not c.signed %} - not signed{% endif %}</li>{% empty %}<li>None.</li>{% endfor %}
+</ul>
+{% if p.excluded %}
+<h2>Left out</h2>
+<ul>{% for c in p.excluded %}<li>{{ c.name }}: {{ c.reason }}</li>{% endfor %}</ul>
+{% endif %}
+{% else %}
+<p>There is no batch result yet.</p>
+{% endif %}
+{% if can_prepare %}
+<form method="post">
+  {% csrf_token %}
+  <p><label><input type="checkbox" name="include_unsigned" value="1"{% if include_unsigned %} checked{% endif %}> Include courses that are not signed yet (marked)</label></p>
+  <button type="submit">Recalculate</button>
+  <button type="submit" name="snapshot" value="1">Keep a snapshot</button>
+</form>
+{% endif %}
+{% endblock %}

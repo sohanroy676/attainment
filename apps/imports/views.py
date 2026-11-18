@@ -9,12 +9,13 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
 
-from apps.academics.models import Section
+from apps.academics.models import Batch, Section
 from apps.academics.services import sections_visible_to
 from apps.accounts.services import has_permission
 from apps.roster import services as roster
 
 from . import services
+from .historic import import_historic
 from .models import ImportBatch
 from .parsers import UnreadableFile
 
@@ -90,3 +91,28 @@ def preview(request: HttpRequest, batch_id: uuid.UUID) -> HttpResponse:
         "imports/preview.html",
         {"batch": batch, "report": batch.report, "missing": missing},
     )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def historic_upload(request: HttpRequest, batch_id: uuid.UUID) -> HttpResponse:
+    """Upload an earlier batch's PO values (or this batch's old workbook values) to compare."""
+    batch = get_object_or_404(Batch.objects.select_related("programme"), pk=batch_id)
+    if not has_permission(request.user, "batch.prepare", "programme", batch.programme_id):
+        raise PermissionDenied
+    if request.method == "POST":
+        file = request.FILES.get("file")
+        if file is None:
+            add_message(request, constants.ERROR, "Please choose a file.")
+        else:
+            try:
+                record = import_historic(batch, file.name, file.read(), actor=request.user)
+            except UnreadableFile as error:
+                add_message(request, constants.ERROR, str(error))
+            except ValidationError as error:
+                for message in error.messages:
+                    add_message(request, constants.ERROR, message)
+            else:
+                add_message(request, constants.SUCCESS, f"Stored {record.report['values']} values.")
+                return redirect("results:batch_compare", batch_id=batch.pk)
+    return render(request, "imports/historic.html", {"batch": batch})

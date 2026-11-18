@@ -7,10 +7,11 @@ no stage until it is reviewed).
 
 from dataclasses import dataclass
 
-from .models import ResultStage, SectionState
+from .models import BatchStage, ResultStage, SectionState
 
 S = SectionState.Status
 R = ResultStage.Status
+B = BatchStage.Status
 
 
 @dataclass(frozen=True)
@@ -34,6 +35,18 @@ STAGE_MOVES: dict[tuple[str | None, str], Move] = {
     (R.APPROVED, "sign"): Move(R.SIGNED, "workflow.sign"),
     (R.APPROVED, "reopen"): Move(R.REOPENED, "data.reopen", reason_required=True),
     (R.SIGNED, "reopen"): Move(R.REOPENED, "data.reopen", reason_required=True),
+}
+
+# A batch result: IQAC prepares it (a kept, complete run from signed courses only), the HoD
+# approves it, the principal signs it. Scope for the permission checks is the programme.
+BATCH_MOVES: dict[tuple[str | None, str], Move] = {
+    (None, "prepare"): Move(B.PREPARED, "batch.prepare"),
+    (B.REOPENED, "prepare"): Move(B.PREPARED, "batch.prepare"),
+    (B.PREPARED, "prepare"): Move(B.PREPARED, "batch.prepare"),
+    (B.PREPARED, "approve"): Move(B.APPROVED, "workflow.approve"),
+    (B.APPROVED, "sign"): Move(B.SIGNED, "workflow.sign"),
+    (B.APPROVED, "reopen"): Move(B.REOPENED, "data.reopen", reason_required=True),
+    (B.SIGNED, "reopen"): Move(B.REOPENED, "data.reopen", reason_required=True),
 }
 
 # The exam branch submits the SEE; everyone else submits through the lecturer's right.
