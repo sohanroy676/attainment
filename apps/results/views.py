@@ -280,3 +280,27 @@ def batch_inputs_page(request: HttpRequest, batch_id: uuid.UUID) -> HttpResponse
             )
             return redirect(request.path)
     return render(request, "results/batch_inputs.html", {"batch": batch, "rows": rows})
+
+
+@login_required
+def batch_compare_page(request: HttpRequest, batch_id: uuid.UUID) -> HttpResponse:
+    """This batch beside the two before it, and its computed values beside its old workbook."""
+    batch = _batch_or_404(batch_id)
+    if not has_permission(request.user, "reports.view", "programme", batch.programme_id):
+        raise PermissionDenied
+    codes = [o.code for o in services.batch_outcomes(batch.programme)]
+    columns = services.comparison_columns(batch)
+    table = [(code, [c.values.get(code) for c in columns]) for code in codes]
+    return render(
+        request,
+        "results/batch_compare.html",
+        {
+            "batch": batch,
+            "columns": columns,
+            "table": table,
+            "side_by_side": services.compare_with_imported(batch),
+            "can_prepare": has_permission(
+                request.user, "batch.prepare", "programme", batch.programme_id
+            ),
+        },
+    )

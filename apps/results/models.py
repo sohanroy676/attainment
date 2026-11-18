@@ -142,3 +142,26 @@ class BatchRun(TenantRecord):
     class Meta:
         ordering = ["-at"]
         indexes = [models.Index(fields=["batch", "is_latest"])]
+
+
+class HistoricResult(TenantRecord):
+    """A PO or PSO value of an earlier batch (or of a batch's old workbook) that was typed in a
+    workbook, not calculated here (design 5.5, 8.13). It feeds the three-batch comparison and the
+    side-by-side check against the computed value. The uploaded file is kept as `source`."""
+
+    class Kind(models.TextChoices):
+        PO_DIRECT = "po_direct", "PO direct"
+        PO_TOTAL = "po_total", "PO total"
+
+    batch = models.ForeignKey(Batch, on_delete=models.CASCADE, related_name="+")
+    kind = models.CharField(max_length=10, choices=Kind.choices)
+    key = models.CharField(max_length=10)  # PO1, PSO2
+    value = models.CharField(max_length=40)  # exact decimal text, as in the file
+    source = models.ForeignKey(
+        "imports.ImportBatch", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["batch", "kind", "key"], name="historic_unique")
+        ]

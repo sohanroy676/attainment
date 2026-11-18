@@ -28,6 +28,7 @@ from apps.outcomes.models import CourseDefinitionVersion, ProgrammeOutcome, Targ
 from apps.roster.models import Enrolment
 from apps.tenancy.services import college_context, get_current_college_id
 from engine.batch import BatchCourse, BatchInput, batch_result_to_dict, run_batch
+from engine.compare import compare_values
 from engine.display import display
 from engine.hashing import result_to_dict
 from engine.model import CourseInput, OfferingInput, Override
@@ -36,7 +37,14 @@ from engine.precision import decimal_text
 from engine.schema import MethodConfig
 from engine.trace import Trace
 
-from .models import BatchIndirect, BatchRun, CalculationRun, IndirectValue, ResultValue
+from .models import (
+    BatchIndirect,
+    BatchRun,
+    CalculationRun,
+    HistoricResult,
+    IndirectValue,
+    ResultValue,
+)
 
 log = logging.getLogger(__name__)
 
@@ -621,3 +629,160 @@ def batch_differs_from_signed(batch: Batch) -> bool:
     if signed is None or latest is None or latest.pk == signed.pk:
         return False
     return latest.input_hash != signed.input_hash
+
+
+# earlier batches and the old workbook (design 8.13) ---------
+def store_historic(
+    batch: Batch,
+    values: dict[tuple[str, str], Decimal],
+    source: Any,
+    actor: User | None = None,
+) -> int:
+    """Store PO values typed in an old workbook for a batch: (kind, outcome code) -> value.
+
+    The values for the kinds in `values` are replaced as a whole (the audit log keeps the old
+    ones). Returns how many values were stored.
+    """
+    known = {o.code for o in batch_outcomes(batch.programme)}
+    kinds = {kind for kind, _code in values}
+    for kind, code in values:
+        if kind not in HistoricResult.Kind.values:
+            raise ValidationError(f"{kind} is not a kind of earlier result.")
+        if code not in known:
+            raise ValidationError(f"{code} is not an outcome of this programme.")
+    for (_kind, code), value in values.items():
+        if not 0 <= value <= 10:
+            raise ValidationError(f"{code}: the value {value} must be between 0 and 10.")
+    actor_id = None if actor is None else actor.pk
+    with transaction.atomic():
+        for old in HistoricResult.objects.filter(batch=batch, kind__in=kinds):
+            audit.record_model(
+                "deleted", old, actor_id=actor_id, before=audit.snapshot(old),
+                reason="replaced by a new upload",
+            )  # fmt: skip
+            old.delete()
+        for (kind, code), value in sorted(values.items()):
+            row = HistoricResult.objects.create(
+                batch=batch, kind=kind, key=code, value=decimal_text(value) or "", source=source
+            )
+            audit.record_model("created", row, actor_id=actor_id, after=audit.snapshot(row))
+    return len(values)
+
+
+def historic_values(batch: Batch, kind: str) -> dict[str, Decimal]:
+    return {h.key: Decimal(h.value) for h in HistoricResult.objects.filter(batch=batch, kind=kind)}
+
+
+def earlier_batches(batch: Batch, count: int = 2) -> list[Batch]:
+    """The `count` batches of the same programme that finished before this one, oldest first."""
+    found = Batch.objects.filter(
+        programme=batch.programme, start_year__lt=batch.start_year
+    ).order_by("-start_year")[:count]
+    return list(reversed(list(found)))
+
+
+@dataclass
+class BatchColumn:
+    batch: Batch
+    source: str  # "signed", "imported", "calculated", "provisional" or "none"
+    values: dict[str, str | None] = field(default_factory=dict)  # code -> shown text
+
+
+def _run_totals(run: BatchRun, codes: list[str]) -> dict[str, str | None]:
+    config = (
+        None if run.method_version is None else methods.parse_config(run.method_version.config_text)
+    )
+    shown: dict[str, str | None] = {}
+    for code in codes:
+        raw = run.outputs.get("outcomes", {}).get(code)
+        total = None if raw is None else raw[3]
+        shown[code] = (
+            None
+            if total is None or config is None
+            else str(display(config.precision, "batch", Decimal(total)))
+        )
+    return shown
+
+
+def comparison_columns(batch: Batch) -> list[BatchColumn]:
+    """PO and PSO totals of this batch and the two before it, side by side.
+
+    This batch shows its newest result. An earlier batch shows its signed result if it has one,
+    else the values imported from its workbook, else its newest calculated result.
+    """
+    codes = [o.code for o in batch_outcomes(batch.programme)]
+    columns: list[BatchColumn] = []
+    for earlier in earlier_batches(batch):
+        signed = signed_batch_run(earlier)
+        imported = historic_values(earlier, HistoricResult.Kind.PO_TOTAL)
+        latest = latest_batch_run(earlier)
+        if signed is not None:
+            columns.append(BatchColumn(earlier, "signed", _run_totals(signed, codes)))
+        elif imported:
+            columns.append(
+                BatchColumn(earlier, "imported", {c: _text(imported.get(c)) for c in codes})
+            )
+        elif latest is not None:
+            columns.append(BatchColumn(earlier, "provisional", _run_totals(latest, codes)))
+        else:
+            columns.append(BatchColumn(earlier, "none", dict.fromkeys(codes)))
+    run = latest_batch_run(batch)
+    if run is None:
+        columns.append(BatchColumn(batch, "none", dict.fromkeys(codes)))
+    else:
+        label = (
+            "signed" if run.signed else "calculated" if run.status == "complete" else "provisional"
+        )
+        columns.append(BatchColumn(batch, label, _run_totals(run, codes)))
+    return columns
+
+
+def _text(value: Decimal | None) -> str | None:
+    return None if value is None else decimal_text(value)
+
+
+@dataclass
+class SideBySideRow:
+    code: str
+    kind: str
+    computed: str
+    imported: str
+    difference: str
+    differs: bool
+    note: str
+
+
+def compare_with_imported(batch: Batch) -> list[SideBySideRow]:
+    """The newest computed PO values against the ones typed in the batch's old workbook.
+
+    A row differs when the two values differ at the method's batch display precision.
+    """
+    run = latest_batch_run(batch)
+    if run is None or run.method_version is None:
+        return []
+    config = methods.parse_config(run.method_version.config_text)
+    rows: list[SideBySideRow] = []
+    for kind, position in ((HistoricResult.Kind.PO_DIRECT, 1), (HistoricResult.Kind.PO_TOTAL, 3)):
+        imported = historic_values(batch, kind)
+        if not imported:
+            continue
+        for code in run.outputs.get("outcomes_order", []):
+            raw = run.outputs.get("outcomes", {}).get(code)
+            computed = None if raw is None or raw[position] is None else Decimal(raw[position])
+            result = compare_values(config.precision, "batch", computed, imported.get(code))
+
+            def shown(value: Decimal | None) -> str:
+                return "-" if value is None else str(display(config.precision, "batch", value))
+
+            rows.append(
+                SideBySideRow(
+                    code,
+                    str(HistoricResult.Kind(kind).label),
+                    shown(result.computed),
+                    "-" if result.imported is None else decimal_text(result.imported) or "-",
+                    "-" if result.difference is None else decimal_text(result.difference) or "0",
+                    result.differs,
+                    result.note,
+                )  # fmt: skip
+            )
+    return rows

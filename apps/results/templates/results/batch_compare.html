@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Batch comparison - Attainment{% endblock %}
+{% block content %}
+<h1>{{ batch.programme.name }}, batch {{ batch.name }}: comparison</h1>
+{% if messages %}<ul>{% for message in messages %}<li>{{ message }}</li>{% endfor %}</ul>{% endif %}
+<p><a href="{% url 'results:batch' batch.pk %}">Batch result page</a>
+  {% if can_prepare %}| <a href="{% url 'imports:historic' batch.pk %}">Upload earlier values for this batch</a>{% endif %}</p>
+
+<h2>This batch and the two before it</h2>
+<p>Total PO and PSO attainment. Where a value comes from is named under each batch.</p>
+<table>
+  <thead><tr><th>Outcome</th>{% for c in columns %}<th>{{ c.batch.name }}<br><small>{% if c.source == 'none' %}no result{% elif c.source == 'imported' %}imported from a workbook{% else %}{{ c.source }}{% endif %}</small></th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for code, values in table %}
+    <tr><th scope="row">{{ code }}</th>{% for v in values %}<td>{{ v|default:"-" }}</td>{% endfor %}</tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<h2>Computed values beside this batch's old workbook</h2>
+{% if side_by_side %}
+<p>A row is marked when the two values differ at the method's shown precision.</p>
+<table>
+  <thead><tr><th>Outcome</th><th>Value</th><th>Computed</th><th>Old workbook</th><th>Difference</th><th></th></tr></thead>
+  <tbody>
+  {% for r in side_by_side %}
+    <tr{% if r.differs %} class="differs"{% endif %}>
+      <th scope="row">{{ r.code }}</th><td>{{ r.kind }}</td><td>{{ r.computed }}</td><td>{{ r.imported }}</td><td>{{ r.difference }}</td>
+      <td>{% if r.differs %}<strong>Differs</strong>{% if r.note %} ({{ r.note }}){% endif %}{% else %}Same{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>There is nothing to compare yet: calculate this batch and upload the old workbook's values.</p>
+{% endif %}
+{% endblock %}
