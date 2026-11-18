@@ -1,7 +1,7 @@
 # Active Context
 
 ## Current focus
-v0.2.0 to v0.4.0 are built locally as stacked branches (no push yet; owner runs manual tests later, all at once). v0.8.0 (workflow and governance) is built and verified locally. Next build: v0.9.0 (department, batch and quality loop).
+v0.2.0 to v0.4.0 are built locally as stacked branches (no push yet; owner runs manual tests later, all at once). v0.8.0 (workflow and governance) and v0.9.0 (department, batch and quality loop) are built and verified locally. Next build: v0.10.0 (reports and exports).
 
 ## Decisions (settled, do not re-ask)
 - Stack: Python 3.12, uv, Django 5.2 LTS, PostgreSQL 16+, HTMX; pure `engine/` package with `Decimal` (ADRs 0002 to 0004).
@@ -30,6 +30,14 @@ v0.2.0 to v0.4.0 are built locally as stacked branches (no push yet; owner runs 
 - Lockout is per username only (axes.W006 silenced): behind the proxy all clients share one IP.
 - Tests: `config/settings/test.py`, database `attainment_test` created by the PostgreSQL superuser, migrated by the owner, used as the app role. Use `committed_db` for tests that need real commits; the owner truncates afterwards. Needs `POSTGRES_*` and `DB_*` env vars (from `.env` via `scripts/init_env.py`, or the shell).
 - Demo accounts: `a.` and `b.` + admin, iqac, hod, coordinator, lecturer, exam, principal, auditor. Design section 2.5 does not list demo accounts; the set is derived from the section 9 role table.
+
+## Open items from v0.9.0
+- Target-revision proposal (manual by default) is not built; needs the mentor's rule.
+- Action Taken Report (design 8.9 step 3) belongs with v0.10.0 reports.
+- Old-workbook comparison is batch level only (PO direct and total); course-level CO comparison (A6 and M3 at course level) is not built.
+- Batch sign-off tasks are not in the workflow inbox; observations and plans cannot be edited.
+- A1 and A5 against the real mentor files (R3, chart table) need DS-B and the old workbooks.
+- Free-tier database size may need a lower proof-file cap than 200 MB.
 
 ## Open items from v0.1.0
 - Platform admin (no college) is not implemented: users must belong to a college.
@@ -87,10 +95,18 @@ v0.2.0 to v0.4.0 are built locally as stacked branches (no push yet; owner runs 
 - Open: department-scoped audit viewer for HoD (viewer is college-wide only), enforcement of `SupportGrant` (needs platform-admin role), "overridden" marker on result pages (M3), email reminders (out of scope).
 - `decide_override` checks `override.apply` over the offering's scope, so a department HoD can decide for their own offerings.
 
+## v0.9.0 design choices (settled)
+- Batch roll-up lives in `results` (`BatchRun`, `BatchIndirect`, `HistoricResult`): `calculate_batch(batch, include_unsigned, keep)` takes each course's signed run; with `include_unsigned` an unsigned course uses its newest run, but a signed run always wins. Left-out courses, unsigned or provisional courses, missing targets or indirect values keep the batch provisional (checklist). A course run covers all of a programme's sections of the offering, so an offering with sections of two batches counts in both (a checklist line says so). The batch method is the programme's method for the first offering.
+- Batch sign-off in `workflow` (`BatchStage`, `BatchSignature`, `BatchReopening`, `BATCH_MOVES`): IQAC prepares (kept, complete, signed-only run), HoD approves, principal signs (`results.seal_batch`; the database freezes the signed run, only `is_latest` may move). Reopen needs `data.reopen` and a reason, cycle+1. Permission scope is the programme. Batch tasks are not in the inbox yet.
+- Earlier batches: `HistoricResult` (kinds `po_direct`, `po_total`) imported by `apps/imports/historic.py` (header `Outcome` then `Direct` and/or `Total`; all or nothing; the file is kept as an `ImportBatch` of kind `historic`; a new upload replaces the same kinds and the replaced values stay in the audit log). Three-batch comparison shows signed, else imported, else calculated values per earlier batch. Old-workbook comparison differs only at the method's batch display precision (`engine/compare.py`).
+- Gap view: `engine/gaps.py` (`below_target`, `weakest_questions`) reads the stored final values and the `QuestionPass` trace entries; `results.course_gaps` and `results.batch_gaps` feed the pages and the quality draft.
+- Quality loop (`apps/quality`): observations, action plans (carry to later offerings of the same course through `previous_plans`), actions taken (later offering only, date not in the future), proof files. Edit right is `observations.edit` over the offering or one of its sections; view is `reports.view` or the edit right. Files: PDF, PNG, JPEG only, type from the file's own bytes, 5 MB each, 10 per action, 200 MB per college (`QUALITY_COLLEGE_MAX_BYTES`), stored in the database, served as attachments with a sandbox CSP. `record_action` saves an action and its files together. No editing or deleting of observations and plans.
+- Tests: `apps/tenancy/tests/test_v090_isolation.py` (A12 sweep over every new page and endpoint, plus forced-RLS check), `apps/results/tests/test_batch_speed.py` (A11, marker `perf`). Do not use bare `.first()` on UUID-keyed rows to pick a record in a test.
+
 ## Environment notes
 - Write files as UTF-8, no BOM, LF endings.
 - `gh` auth may be unavailable in cloud sessions; check CI with the GitHub MCP tools.
 - Real mentor workbooks only in gitignored `data/private/`; committed fixtures are anonymised.
 
 ## Next step
-Build v0.9.0. Owner later: build DS-A and DS-B, run golden tests, run all manual tests (v0.2.0 M1-M4, v0.3.0 M1-M4, v0.4.0 M1-M5, v0.1.0 M1-M5), then push the stacked branches in order, one PR each.
+Build v0.10.0 (reports and exports). Owner later: build DS-A and DS-B, run golden tests, run all manual tests (v0.2.0 M1-M4, v0.3.0 M1-M4, v0.4.0 M1-M5, v0.1.0 M1-M5), then push the stacked branches in order, one PR each.
