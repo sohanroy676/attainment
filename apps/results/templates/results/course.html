@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Result - Attainment{% endblock %}
+{% block content %}
+<h1>{{ offering.course.title }}</h1>
+<p>{{ offering.term }} - {{ programme.name }}</p>
+{% if messages %}<ul>{% for message in messages %}<li>{{ message }}</li>{% endfor %}</ul>{% endif %}
+{% if p %}
+{% include "results/_tables.html" %}
+<p>Sections:
+  {% for s in sections %}<a href="{% url 'results:section' offering.pk s.pk %}">{{ s.name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}
+  | <a href="{% url 'results:export' offering.pk %}?programme={{ programme.pk }}">Download as Excel</a>
+  {% if can_indirect %}| <a href="{% url 'results:indirect' offering.pk %}">Enter indirect values</a>{% endif %}</p>
+{% else %}
+<p>There is no result yet.</p>
+{% endif %}
+<form method="post" action="{% url 'results:recalculate' offering.pk %}?programme={{ programme.pk }}">
+  {% csrf_token %}
+  <button type="submit">Recalculate</button>
+  <button type="submit" name="snapshot" value="1">Keep a snapshot</button>
+</form>
+{% endblock %}

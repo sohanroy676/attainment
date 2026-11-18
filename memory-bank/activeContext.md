@@ -1,7 +1,7 @@
 # Active Context
 
 ## Current focus
-v0.2.0 to v0.4.0 are built locally as stacked branches (no push yet; owner runs manual tests later, all at once). Next build: v0.7.0 (results and explanations: CalculationRun, ResultValue, Explain screens; R1 and R2 on screen).
+v0.2.0 to v0.4.0 are built locally as stacked branches (no push yet; owner runs manual tests later, all at once). Next build: v0.8.0 (workflow and governance: submit, accept, approve, sign, freeze, override, reopen).
 
 ## Decisions (settled, do not re-ask)
 - Stack: Python 3.12, uv, Django 5.2 LTS, PostgreSQL 16+, HTMX; pure `engine/` package with `Decimal` (ADRs 0002 to 0004).
@@ -70,6 +70,14 @@ v0.2.0 to v0.4.0 are built locally as stacked branches (no push yet; owner runs 
 - Imports: any error rejects the whole file; blank cells on a blank stay untouched; marks sheets carry a `meta` sheet (assessment and section ids) to catch the wrong sheet; script mapping files may carry a `section` column where roll numbers repeat across sections.
 - Engine adapter `marks.services.engine_assessment(assessment, sections, state_map)`: default maps value to entered, absent to absent, everything else to blank; a student whose every cell is absent is `absent_whole`.
 - Parser safety: broad catch at the file boundary, defusedxml for XML attacks, formulas without cached values refused with the cell named.
+
+## v0.7.0 design choices (settled)
+- `results.services.calculate(offering, programme)` builds the input through other modules' services, runs `engine.run_offering` (all sections of that programme, rolled up per the method's `rollup`), and stores a `CalculationRun` (outputs JSON, trace JSON, checklist) plus `ResultValue` rows. Latest non-kept run is replaced; `snapshot()` keeps one. Run per programme: an offering serving two programmes gets two independent runs.
+- Choice rules come from the method JSON (`tools.X.choice`), not from the paper's `ChoiceGroup` (the paper's groups drive the `by_choice` denominator tag and validation). R1 therefore applies best-N only where the method says so.
+- Provisional = engine `complete` is false OR the checklist is non-empty (no method, no paper, students without a marks row, missing target, missing indirect, empty map, blocked values).
+- Recalculation: signals in `apps/results/signals.py` call `mark_dirty`; `transaction.on_commit` registers a flush every time (idempotent). A rolled-back transaction leaves stale entries, which are harmless. Failures are logged, never raised into the saving request.
+- Pages need `reports.view` over the offering (course) or section; the lecturer therefore sees section pages only. Explain filters trace entries by the viewer's section permissions. `indirect.enter` (IQAC) is the new permission for indirect values.
+- Not built yet in v0.7.0: round/truncate switch in the interface (it is the method's precision), band-edge marker is on tool percentages only.
 
 ## Environment notes
 - Write files as UTF-8, no BOM, LF endings.

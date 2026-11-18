@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Explain - Attainment{% endblock %}
+{% block content %}
+<h1>How {{ key }} was worked out</h1>
+<p>Method {{ run.method_version }} - engine {{ run.engine_version }} - input hash <code>{{ run.input_hash }}</code></p>
+{% for scope, entry in entries %}
+{% ifchanged scope %}<h2>{{ scope|capfirst }}</h2>{% endifchanged %}
+<p><strong>{{ entry.step }}</strong> {{ entry.key }}: {{ entry.message }}
+  {% if entry.data.attempt_rate %}<br>Attempt rate {{ entry.data.attempt_rate|slice:":6" }}{% endif %}
+  {% if entry.data.small_group %}<br><em>Small group: fewer students than the warning limit.</em>{% endif %}</p>
+{% empty %}
+<p>There is nothing to explain for this value.</p>
+{% endfor %}
+<p><a href="javascript:history.back()">Back</a></p>
+{% endblock %}

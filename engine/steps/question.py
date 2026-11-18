@@ -82,6 +82,8 @@ def evaluate_parts(
             sat=len(sat),
             threshold=threshold,
             small_group=warning,
+            co=part.co,
+            attempt_rate=(Decimal(len(marks)) / Decimal(len(sat)) if sat else None),
         )
     return results
 

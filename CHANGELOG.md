@@ -2,6 +2,12 @@
 
 ## Unreleased (built, not yet released; manual tests and golden data pending)
 
+### v0.7.0 - results and explanations (first end-to-end slice)
+- Input snapshot builder from roster, marks, papers, outcomes, targets, indirect values and the method in force; calculation runs per offering and programme (latest replaces latest; snapshots kept); stored result values; checklist of what is missing; provisional versus complete.
+- Course, section and programme-separated result pages, Explain panel on every number (parts, pass counts, denominators, attempt rates, small-group flags, method and engine version, input hash), indirect value entry labelled "entered, not measured", Excel export.
+- Automatic recalculation after commit when marks, mapping, target, method, indirect values, approved overrides or enrolments change (one run per offering per transaction).
+- Hand-computed two-section example reproduced end to end. Real R1 and R2 on screen still wait for the DS-A fixture.
+
 ### v0.6.0 - marks entry and import
 - Mark rows and cells with all states (value including 0, blank, absent, withheld, exempted, not applicable, not attempted), attempts, optimistic locking by row version, append-only change history (database-enforced), reason required after submission, per-section permissions (lecturer own section, exam branch SEE only, auditor read-only).
 - Server-rendered marks grid, pre-filled Excel sheet per section, marks import with preview and all-or-nothing commit (file kept), SEE script mapping and SEE import by script number with best-N warnings, file safety (uncached formulas, entity attacks, size, type).

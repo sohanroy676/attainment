@@ -17,6 +17,7 @@ PERMISSIONS: dict[str, frozenset[str]] = {
             "override.apply",
             "data.reopen",
             "batch.prepare",
+            "indirect.enter",
             "reports.view",
             "audit.view",
         }
