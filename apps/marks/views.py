@@ -17,6 +17,7 @@ from apps.imports.models import ImportBatch
 from apps.imports.parsers import UnreadableFile
 from apps.roster.models import Enrolment
 from apps.roster.services import current_identifier
+from apps.tenancy.throttle import throttled
 
 from . import importer, services
 from .models import MarkCell
@@ -124,6 +125,8 @@ def _upload(
     title: str,
 ) -> HttpResponse:
     if request.method == "POST":
+        if (too_many := throttled(request, "upload")) is not None:
+            return too_many
         file = request.FILES.get("file")
         if file is None:
             add_message(request, constants.ERROR, "Please choose a file.")

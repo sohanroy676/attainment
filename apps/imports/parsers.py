@@ -6,6 +6,7 @@ The file's type is checked by its content, not only its name.
 
 import csv
 import io
+import zipfile
 from dataclasses import dataclass, field
 from decimal import Decimal
 
@@ -62,9 +63,28 @@ def _csv_rows(content: bytes) -> list[list[str]]:
     return [list(row) for row in csv.reader(io.StringIO(text))]
 
 
+MAX_UNPACKED_BYTES = 100 * 1024 * 1024  # all parts of an .xlsx together, once unzipped
+MAX_ZIP_ENTRIES = 1000
+
+
+def check_zip(content: bytes) -> None:
+    """Refuse a decompression bomb before any part of the file is unpacked.
+
+    The sizes come from the zip directory, which is read without unpacking anything.
+    """
+    try:
+        with zipfile.ZipFile(io.BytesIO(content)) as archive:
+            parts = archive.infolist()
+    except zipfile.BadZipFile as error:
+        raise UnreadableFile("This is not a real Excel (.xlsx) file.") from error
+    if len(parts) > MAX_ZIP_ENTRIES or sum(p.file_size for p in parts) > MAX_UNPACKED_BYTES:
+        raise UnreadableFile("The Excel file expands to an unsafe size and was refused.")
+
+
 def _xlsx_rows(content: bytes) -> list[list[str]]:
     import openpyxl
 
+    check_zip(content)
     try:
         # defusedxml (installed) makes openpyxl refuse entity-expansion and external-entity files
         workbook = openpyxl.load_workbook(io.BytesIO(content), data_only=True, read_only=True)
