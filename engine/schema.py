@@ -60,11 +60,19 @@ class PrecisionRule(_Strict):
 
 
 class Precision(_Strict):
+    """Rounding per level (design 6.3). A level without its own rule uses `default`."""
+
     default: PrecisionRule = PrecisionRule()
+    question_pct: PrecisionRule | None = None
     co: PrecisionRule | None = None
     course: PrecisionRule | None = None
-    question_pct: PrecisionRule | None = None
+    po: PrecisionRule | None = None
+    batch: PrecisionRule | None = None
     compare_with: Literal["unrounded", "displayed"] = "unrounded"
+
+    def rule_for(self, level: str) -> PrecisionRule:
+        rule: PrecisionRule | None = getattr(self, level, None) if level != "default" else None
+        return rule or self.default
 
 
 class ChoiceRule(_Strict):
@@ -82,6 +90,11 @@ class QuestionWiseTool(_Strict):
     whole_assessment_absent: Literal["exclude", "count_as_fail"] = "exclude"
     choice: dict[str, ChoiceRule] = {}  # choice group id -> rule
     small_group_warning: int = Field(default=10, ge=0)
+    # How part results become a CO percentage (design 6.3 AggregateToCO).
+    aggregate: Literal["mean_of_question_pct", "marks_weighted", "student_level"] = (
+        "mean_of_question_pct"
+    )
+    student_level_pct: Percent | None = None  # student_level: a student passes a CO at this %
 
     @model_validator(mode="after")
     def fixed_needs_a_count(self) -> "QuestionWiseTool":
@@ -150,6 +163,58 @@ class Course(_Strict):
     target_compare: Literal[">="] = ">="
 
 
+class Rollup(_Strict):
+    """Sections of one offering into the course (design 6.2 step 8)."""
+
+    method: Literal["mean", "weighted_by_students"] = "mean"
+    stage: Literal["pct", "level", "attainment"] = "attainment"
+
+
+class PoConfig(_Strict):
+    formula: Literal["weighted_mean"] = "weighted_mean"
+    all_zero: Literal["blank", "zero"] = "blank"
+
+
+class BatchConfig(_Strict):
+    direct: Weight = Decimal("0.8")
+    indirect: Weight = Decimal("0.2")
+
+    @model_validator(mode="after")
+    def sums_to_one(self) -> "BatchConfig":
+        if self.direct + self.indirect != 1:
+            raise PydanticCustomError(
+                "weights",
+                "batch weights must sum to 1 (got {total})",
+                {"total": str(self.direct + self.indirect)},
+            )
+        return self
+
+
+class ReviseRule(_Strict):
+    """How a target changes after a year (design TargetRevise). `manual` never changes it."""
+
+    rule: Literal["manual", "add_points", "add_percent", "multiply"] = "manual"
+    value: Decimal | None = None
+    if_not_met: Literal["keep", "lower"] = "keep"
+    floor: Decimal | None = None
+    ceiling: Decimal | None = None
+
+    @model_validator(mode="after")
+    def rule_needs_a_value(self) -> "ReviseRule":
+        if self.rule != "manual" and self.value is None:
+            raise PydanticCustomError("value", "rule '{r}' needs a value", {"r": self.rule})
+        if self.rule == "multiply" and self.value is not None and self.value <= 0:
+            raise PydanticCustomError("value", "multiply needs a value above 0")
+        if self.floor is not None and self.ceiling is not None and self.floor > self.ceiling:
+            raise PydanticCustomError("floor", "floor cannot be above ceiling")
+        return self
+
+
+class Targets(_Strict):
+    revise: ReviseRule = ReviseRule()
+    near_target_margin: Decimal = Field(default=Decimal("0.01"), ge=0)
+
+
 class MethodConfig(_Strict):
     schema_version: Literal["attainment-method/1"] = Field(alias="schema")
     name: str
@@ -162,6 +227,10 @@ class MethodConfig(_Strict):
     direct: dict[str, Weight] = Field(min_length=1)
     final: Final
     course: Course = Course()
+    rollup: Rollup = Rollup()
+    po: PoConfig = PoConfig()
+    batch: BatchConfig = BatchConfig()
+    targets: Targets = Targets()
 
     model_config = ConfigDict(extra="forbid", frozen=True, populate_by_name=True)
 

@@ -45,9 +45,42 @@ uv run python -m engine run docs/examples/method.json docs/examples/sample-marks
 12. **Course attainment:** the mean of the final CO values that have one; compared with the target
     using the unrounded value (`precision.compare_with`: `unrounded` or `displayed`).
 
+## From the course to the batch (engine 0.3.0)
+13. **Sections** (`rollup`): an offering with several sections is calculated section by section and
+    rolled up at one stage. `attainment` (default) takes the mean of the sections' final CO values;
+    `level` rolls the tool levels, `pct` rolls the tool percentages and then applies the bands.
+    `method`: `mean`, or `weighted_by_students` (weights = enrolled students per section). A
+    section that is stopped for review blocks the course; every section stays visible.
+    Try: `uv run python -m engine run docs/examples/method-offering.json docs/examples/sample-offering.json`
+14. **Outcomes** (`po`): each PO and PSO is the weighted mean of the final CO values mapped to it:
+    sum(strength x CO) / sum(strength). A CO that is not mapped is left out; a strength of 0 adds
+    nothing. If every usable strength is 0 the outcome is blank (default `all_zero: blank`) or 0.
+    A CO with no value is skipped; a CO stopped for review blocks the outcome.
+15. **Targets** (`targets`): the course is compared with its target using the unrounded value
+    (or the displayed one, see Rounding). A result within `near_target_margin` (default 0.01) of
+    the target gets a warning flag either way. A target revision rule (`revise`) is a small table:
+    `manual` (default, never changes it), `add_points`, `add_percent`, `multiply`; `if_not_met`
+    is `keep` or `lower`; `floor` and `ceiling` hold the result. The revision is offered as a
+    calculation; whether the college applies it automatically is still open.
+16. **Batch:** for each outcome the direct value is the simple average of the course values (a
+    blank course is skipped, a 0 counts), the total is `batch.direct` x direct + `batch.indirect`
+    x entered indirect (0.8 and 0.2 by default), compared with the outcome's target. Courses
+    attained and not attained are counted per category (core, non-core).
+    Try: `uv run python -m engine batch docs/examples/method.json docs/examples/sample-batch.json`
+17. **Other ways to get a CO percentage** (`aggregate`, per question-wise tool): the default is the
+    plain mean of the part percentages; `marks_weighted` weights each part by its maximum mark;
+    `student_level` counts a student as passing the CO when their marks on the CO's answered parts
+    reach `student_level_pct` of the maximum of those parts. `docs/examples/method-college-b.json`
+    is a complete second method (different bands, weights, `>` boundary, rounding) written as
+    configuration only.
+
 ## Rounding
 Arithmetic keeps 40 digits; nothing is rounded between steps. Values are rounded only for display,
-by `precision`: `truncate` (default) or `round` (half away from zero, like Excel), with `places`.
+by `precision`, which can differ per level (`question_pct`, `co`, `course`, `po`, `batch`; any level
+without its own rule uses `default`): `truncate` (default), `round` (half away from zero, like
+Excel) or `none` (all digits), with `places`. `compare_with` says whether a target is compared with
+the unrounded value (default) or the displayed one: in the CSE 2021-25 batch PO9 is 2.8594 against a
+target of 2.86, so it is Not attained unrounded and Attained if the total is rounded to 2.86 first.
 Floating-point numbers are never used: 0.8 × 2.4 + 0.6 gives 2.52 exactly (a float gives 2.5199…
 and truncates to 2.51).
 
@@ -61,4 +94,6 @@ hashes.
 - Which result is official for Deep Learning: 2.18 (strict 60%) or 2.32 (typed pass marks)?
 - When no value exists for a CO from one tool, should the default stay "stop for review"?
 - Is the merge of the two internals always a plain average?
-- Not yet built (v0.3.0): sections roll-up, PO/PSO mapping, batch roll-up, target revision.
+- Should the batch status compare the unrounded total (PO9 Not attained) or the rounded one?
+- Should a target revision rule apply automatically each year, or stay manual?
+- Which other colleges' published methods can we use to test that the rules are general enough?

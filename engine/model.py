@@ -68,6 +68,21 @@ class CourseInput:
     overrides: Mapping[tuple[str, str], Override] = field(default_factory=dict)  # (tool, part)
     indirect: Mapping[str, Decimal] = field(default_factory=dict)  # CO -> entered value
     target: Decimal | None = None
+    # CO -> outcome -> strength. A missing entry is "not mapped"; an explicit 0 is a mapping
+    # of strength 0 (adds nothing). The two differ only when every mapped strength is 0.
+    mapping: Mapping[str, Mapping[str, Decimal]] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class OfferingInput:
+    """Several sections of one course offering. Each section has its own marks; the indirect
+    values, target and CO-PO mapping belong to the course and are given once."""
+
+    cos: tuple[str, ...]
+    sections: Mapping[str, CourseInput]
+    indirect: Mapping[str, Decimal] = field(default_factory=dict)
+    target: Decimal | None = None
+    mapping: Mapping[str, Mapping[str, Decimal]] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -105,3 +120,6 @@ class CourseResult:
     flags: tuple[str, ...]
     engine_version: str
     input_hash: str
+    po: Mapping[str, CoValue] = field(default_factory=dict)  # PO and PSO values from final COs
+    indirect: Mapping[str, Decimal] = field(default_factory=dict)  # entered, not measured
+    indirect_source: str = "entered_value"

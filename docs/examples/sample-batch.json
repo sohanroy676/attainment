@@ -1,0 +1,47 @@
+{
+ "_note": "Synthetic sample. Not real data.",
+ "outcomes": [
+  "PO1",
+  "PO2"
+ ],
+ "targets": {
+  "PO1": 2.55,
+  "PO2": 2.65
+ },
+ "indirect": {
+  "PO1": 3,
+  "PO2": 3
+ },
+ "courses": [
+  {
+   "id": "c1",
+   "name": "Course one",
+   "category": "core",
+   "attained": true,
+   "po": {
+    "PO1": 2.8,
+    "PO2": 2.7
+   }
+  },
+  {
+   "id": "c2",
+   "name": "Course two",
+   "category": "core",
+   "attained": false,
+   "po": {
+    "PO1": 2.1,
+    "PO2": null
+   }
+  },
+  {
+   "id": "c3",
+   "name": "Course three",
+   "category": "non_core",
+   "attained": true,
+   "po": {
+    "PO1": 3,
+    "PO2": 3
+   }
+  }
+ ]
+}
