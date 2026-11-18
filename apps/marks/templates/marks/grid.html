@@ -15,7 +15,7 @@
       {% for c in row.cells %}
       <td>
         {% if editable %}
-        <input name="cell:{{ c.key }}" value="{{ c.text }}" size="5"{% if c.error %} aria-invalid="true" title="{{ c.error }}"{% endif %}>
+        <input name="cell:{{ c.key }}" aria-label="Roll {{ row.roll }}, part {{ c.code }}" value="{{ c.text }}" size="5"{% if c.error %} aria-invalid="true" title="{{ c.error }}"{% endif %}>
         <input type="hidden" name="old:{{ c.key }}" value="{{ c.old }}">
         <input type="hidden" name="ver:{{ c.key }}" value="{{ c.ver }}">
         {% if c.error %}<span class="errorlist">{{ c.error }}</span>{% endif %}
