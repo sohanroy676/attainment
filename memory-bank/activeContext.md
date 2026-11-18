@@ -1,7 +1,7 @@
 # Active Context
 
 ## Current focus
-v0.2.0 to v0.4.0 are built locally as stacked branches (no push yet; owner runs manual tests later, all at once). v0.8.0 (workflow and governance) and v0.9.0 (department, batch and quality loop) are built and verified locally. v0.10.0 (reports and exports) and v0.11.0 (hardening, privacy, operations) are built locally on stacked branches `feature/v0.10.0-reports` and `feature/v0.11.0-hardening`. Next: release gates, then v1.0.0 (the 20 acceptance scenarios, demo data, guides).
+v0.1.0 to v1.0.1 are merged to `main` and tagged; CI is green; feature branches are deleted. v1.0.1 = v1.0.0 (prototype) plus the carry-over work. Built and released-as-tags, but **not release-gated**: manual tests, golden tests on the real workbooks and the update-rollback test are owed (see `docs/owner-checklist.md`, `docs/open-items.md`). Waiting on the owner for those results. Next build after that: v1.1.0 pilot readiness.
 
 ## Decisions (settled, do not re-ask)
 - Stack: Python 3.12, uv, Django 5.2 LTS, PostgreSQL 16+, HTMX; pure `engine/` package with `Decimal` (ADRs 0002 to 0004).
@@ -32,10 +32,8 @@ v0.2.0 to v0.4.0 are built locally as stacked branches (no push yet; owner runs 
 - Demo accounts: `a.` and `b.` + admin, iqac, hod, coordinator, lecturer, exam, principal, auditor. Design section 2.5 does not list demo accounts; the set is derived from the section 9 role table.
 
 ## Open items from v0.9.0
-- Target-revision proposal (manual by default) is not built; needs the mentor's rule.
-- Action Taken Report (design 8.9 step 3) belongs with v0.10.0 reports.
+- Target revision: the proposal is shown on the result page (display only, never applied); the rule is `manual` until the mentor decides.
 - Old-workbook comparison is batch level only (PO direct and total); course-level CO comparison (A6 and M3 at course level) is not built.
-- Batch sign-off tasks are not in the workflow inbox; observations and plans cannot be edited.
 - A1 and A5 against the real mentor files (R3, chart table) need DS-B and the old workbooks.
 - Free-tier database size may need a lower proof-file cap than 200 MB.
 
@@ -137,4 +135,4 @@ v0.2.0 to v0.4.0 are built locally as stacked branches (no push yet; owner runs 
 - Real mentor workbooks only in gitignored `data/private/`; committed fixtures are anonymised.
 
 ## Next step
-Build v0.10.0 (reports and exports). Owner later: build DS-A and DS-B, run golden tests, run all manual tests (v0.2.0 M1-M4, v0.3.0 M1-M4, v0.4.0 M1-M5, v0.1.0 M1-M5), then push the stacked branches in order, one PR each.
+Owner: follow `docs/owner-checklist.md` (run the app by hand, walk the demo script, print reports, restore a backup, bring DS-A and DS-B, ask the mentor the open questions) and bring the findings to the next session. Then: golden tests, fixes from the manual tests, release-gate records, and v1.1.0.

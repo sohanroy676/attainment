@@ -31,10 +31,10 @@
 - v1.0.0 prototype built on `feature/v1.0.0-prototype` (2026-11-18): acceptance suite `tests/acceptance` (20 named scenario tests, all pass; scenarios 1 and 2 on hand-worked synthetic numbers), `seed_demo_course` (synthetic course with marks in both demo colleges), demo script, open-items list, v1.0.0 test report, version 1.0.0. Not a release: the gate is owed.
 - Carry-over items built on `feature/v1.0.x-carry-over`: batch tasks in the inbox, department-scoped audit viewer, "overridden" marker and target proposal on the result page, editing of observations and plans, paste of an Excel block into the marks grid (own small script, not Jspreadsheet) with Playwright tests (`tests/e2e`, needs `playwright install chromium`).
 
+- Release (2026-11-18, at the owner's instruction): the stacked branches v0.2.0 to v1.0.x were pushed, CI dispatched on each (all green after one lint fix), PRs #7 to #18 merged to `main` in order with merge commits, annotated tags v0.2.0 to v1.0.0 pushed, merged feature branches deleted. Dependabot: #1, #2, #3 (action bumps) merged after a rebase and green CI; #5 (Python 3.15 image) and #6 (Django range) closed with a reason. Handoff commit tagged v1.0.1 (= v1.0.0 plus the carry-over work). Full local suite before release: 581 passed, 15 skipped (golden data).
+
 ## In progress
-- Nothing is pushed: `feature/v0.2.0-engine`, `v0.3.0-engine-batch`, `v0.4.0-academics-roster`, `v0.5.0-outcomes-papers-methods`, `v0.6.0-marks`, `v0.7.0-results`, `v0.8.0-workflow` and `v0.9.0-quality` are stacked local branches (each built on the previous). The owner will run all manual tests together later.
-- Waiting on the owner for golden data: `scripts/build_ds_a.py` (DS-A) and `scripts/build_ds_b.py` (DS-B). Then `uv run pytest -m golden`.
-- DS-E (two published methods from other colleges) is still needed for the real A10 of v0.3.0.
+- Nothing is being built. Waiting on the owner (`docs/owner-checklist.md`): manual tests, real workbooks for DS-A and DS-B (then `uv run pytest -m golden`), mentor answers, branch protection, optional demo hosting.
 
 ## Next
-- Next: release gates for v0.2.0 to v1.0.0 (golden data DS-A and DS-B, manual tests, push the stacked branches in order, PRs, tags). Then v1.1.0 (method wizard, dry-run diff, two-factor login, reminders). Release gates for v0.2.0 to v0.9.0 are owed (golden data, manual tests, push, PRs, tags). v0.7.0 is the first end-to-end slice; v1.0.0 is the prototype.
+- Release gates for v0.2.0 to v1.0.1 (manual tests recorded in `docs/test-reports/`, golden tests, update-rollback test). Then v1.1.0 (method wizard, dry-run diff, two-factor login, reminders, nightly audit job).
