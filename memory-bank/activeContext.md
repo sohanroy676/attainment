@@ -1,7 +1,7 @@
 # Active Context
 
 ## Current focus
-v0.2.0 to v0.4.0 are built locally as stacked branches (no push yet; owner runs manual tests later, all at once). v0.8.0 (workflow and governance) and v0.9.0 (department, batch and quality loop) are built and verified locally. v0.10.0 (reports and exports) is built locally on `feature/v0.10.0-reports`. Next build: v0.11.0.
+v0.2.0 to v0.4.0 are built locally as stacked branches (no push yet; owner runs manual tests later, all at once). v0.8.0 (workflow and governance) and v0.9.0 (department, batch and quality loop) are built and verified locally. v0.10.0 (reports and exports) and v0.11.0 (hardening, privacy, operations) are built locally on stacked branches `feature/v0.10.0-reports` and `feature/v0.11.0-hardening`. Next: release gates, then v1.0.0 (the 20 acceptance scenarios, demo data, guides).
 
 ## Decisions (settled, do not re-ask)
 - Stack: Python 3.12, uv, Django 5.2 LTS, PostgreSQL 16+, HTMX; pure `engine/` package with `Decimal` (ADRs 0002 to 0004).
@@ -111,6 +111,16 @@ v0.2.0 to v0.4.0 are built locally as stacked branches (no push yet; owner runs 
 - Full export: every `TenantModel` table, college only; password hashes and binary file contents left out.
 - Where PDF libraries are missing the PDF route returns 503 with a message; PDF tests skip. Dockerfile installs `libpango-1.0-0`, `libpangoft2-1.0-0`, `fonts-dejavu-core`.
 - Open: layouts follow the mentor's documents (M1); the Action Taken Report embeds PNG and JPEG proofs only (PDF proofs are listed); no real-data golden checks (A3 for R3); the A7 test measures rendering of an in-memory batch, not a 512 MB container.
+
+## v0.11.0 design choices (settled)
+- Ops commands that visit every college (`verify_audit --all`, `retention ... --all`) list colleges through a psycopg superuser connection (`apps/tenancy/ops.py`, needs `POSTGRES_USER` and `POSTGRES_PASSWORD`, present only in the `ops` compose profile); with `--college <id>` they use the app role. The college table is forced-RLS, so the app role cannot list colleges.
+- Privacy (`apps/privacy`): `RetentionNotice` (one per student). Eligible = every batch ended at least `RETENTION_YEARS` (5) ago; anonymise only after `RETENTION_NOTICE_DAYS` (30). Replaces name and identifier values; marks and enrolments stay; stored upload files and parsed payloads of sections whose batch is past retention are purged (`imports.purge_files`). Permissions: `data.export` and `privacy.manage` (college admin).
+- Rate limits are per process (`LocMemCache`): `settings.RATE_LIMITS` name -> (requests, seconds), names `pdf`, `upload`, `export`.
+- Backup is one encrypted `pg_dump` (openssl AES-256, pbkdf2) because everything, including proof files, is in the database. `restore.sh` decrypts first and checks the dump's first bytes before touching any database; after restoring the live database run `migrate` to re-apply the app role's grants.
+- Tests that need the Docker database container (`test_ops.py`) skip unless `DB_CONTAINER` is set. On Windows `bash` on PATH may be WSL; the test prefers Git's bash.
+- Sweep (`test_sweep.py`) fails when a URL has an id parameter it cannot fill: add the model to `ID_MODELS`.
+- `college_context` no longer issues SQL in its `finally` after an error broke the transaction.
+- PDF tests need GTK3 on Windows: `winget install tschoonj.GTKForWindows`, then `WEASYPRINT_DLL_DIRECTORIES="C:\Program Files\GTK3-Runtime Win64in"`.
 
 ## Environment notes
 - Write files as UTF-8, no BOM, LF endings.

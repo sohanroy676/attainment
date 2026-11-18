@@ -26,10 +26,12 @@
 
 - v0.10.0 reports and exports built on `feature/v0.10.0-reports` (2026-11-18): `apps/reports` (footer and watermark context, HTML templates rendered to PDF by WeasyPrint, per-assessment CO sheet, theory and lab analysis, CO-PO/PSO table, Action Taken Report, batch report with an SVG three-batch chart, explanation appendix, Excel for the course and batch tables, NBA flat list, full college export in Excel and JSON, per-college template override). New permission `data.export` (college admin). PDF tests skip where WeasyPrint's libraries (Pango) are missing. On this machine GTK3 runtime was installed with winget and `WEASYPRINT_DLL_DIRECTORIES=C:\Program Files\GTK3-Runtime Win64in` set; all reports then render and the PDF text (via `pypdf`, a dev dependency) carries the numbers and footer. Layout was not looked at by eye (M1, M3, M4). Full suite 524 passed, 16 skipped.
 
+- v0.11.0 hardening, privacy and operations built on `feature/v0.11.0-hardening` (2026-11-18), stacked on v0.10.0: upload bomb guard, rate limits (`apps/tenancy/throttle.py`), `verify_audit`, `create_college`, `apps/privacy` (retention, notice, anonymise, student export), `scripts/ops/*.sh`, `docker-compose.prod.yml`, endpoint sweep, perf and accessibility tests, grid bulk-loading fix, admin and user guides, known limits, security review, test report `docs/test-reports/v0.11.0.md`. Not done: demo deployment, A9 update cycle, 10-college volume test, manual tests.
+
 ## In progress
 - Nothing is pushed: `feature/v0.2.0-engine`, `v0.3.0-engine-batch`, `v0.4.0-academics-roster`, `v0.5.0-outcomes-papers-methods`, `v0.6.0-marks`, `v0.7.0-results`, `v0.8.0-workflow` and `v0.9.0-quality` are stacked local branches (each built on the previous). The owner will run all manual tests together later.
 - Waiting on the owner for golden data: `scripts/build_ds_a.py` (DS-A) and `scripts/build_ds_b.py` (DS-B). Then `uv run pytest -m golden`.
 - DS-E (two published methods from other colleges) is still needed for the real A10 of v0.3.0.
 
 ## Next
-- Next: v0.11.0 (hardening, privacy and operations). Check PDFs in Docker first. Release gates for v0.2.0 to v0.9.0 are owed (golden data, manual tests, push, PRs, tags). v0.7.0 is the first end-to-end slice; v1.0.0 is the prototype.
+- Next: release gates for v0.2.0 to v0.11.0 (golden data, manual tests, push, PRs, tags), then v1.0.0 work (acceptance suite of the 20 scenarios, demo data, rules guide). Release gates for v0.2.0 to v0.9.0 are owed (golden data, manual tests, push, PRs, tags). v0.7.0 is the first end-to-end slice; v1.0.0 is the prototype.

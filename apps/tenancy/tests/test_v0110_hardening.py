@@ -129,3 +129,21 @@ def test_a2_five_wrong_passwords_lock_the_account(committed_db: None) -> None:
         client.post("/accounts/login/", {"username": "a.lecturer", "password": "wrong-password-1"})
     locked = client.post("/accounts/login/", {"username": "a.lecturer", "password": PASSWORD})
     assert locked.status_code in (403, 429) and b"locked" in locked.content.lower()
+
+
+# the first administrator of a real college ---------------------------------------------------
+def test_create_college_makes_a_college_and_an_admin_who_can_log_in(committed_db: None) -> None:
+    out = io.StringIO()
+    call_command("create_college", "Example College", "example", "first.admin", stdout=out)
+    text = out.getvalue()
+    password = text.split("Password for first.admin: ")[1].splitlines()[0]
+    client = Client()
+    assert (
+        client.post(
+            "/accounts/login/", {"username": "first.admin", "password": password}
+        ).status_code
+        == 302
+    )
+    assert client.get("/privacy/retention/").status_code == 200  # a college admin right
+    with pytest.raises(CommandError, match="not created"):
+        call_command("create_college", "Other", "example", "second.admin", stdout=io.StringIO())

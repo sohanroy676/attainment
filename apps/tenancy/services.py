@@ -50,7 +50,12 @@ def college_context(college_id: uuid.UUID | None) -> Iterator[None]:
         try:
             yield
         finally:
-            set_current_college(previous)
+            if connection.needs_rollback:
+                # An error broke the transaction: it is being rolled back (which also undoes the
+                # SET LOCAL), and more SQL here would hide the real error.
+                set_current_college_id(previous)
+            else:
+                set_current_college(previous)
 
 
 def create_college(name: str, code: str, college_id: uuid.UUID | None = None) -> College:
