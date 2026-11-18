@@ -219,10 +219,10 @@ def test_excel_formulas_are_never_evaluated(db: None) -> None:
     s = make_structure(college)
     with college_context(college.id):
         content = _xlsx([["roll_no", "name"], ["=1+1", "Formula Student"]])
-        batch = services.preview_roster(s.section_a, "roster.xlsx", content)
-        # an uncomputed formula has no cached value, so the roll number reads as empty
-        assert batch.status == ImportBatch.Status.REJECTED
-        assert "roll number is empty" in batch.report["error_rows"][0][1]
+        # an uncomputed formula has no stored result: the file is refused with a clear message
+        with pytest.raises(UnreadableFile, match="formula with no stored result"):
+            services.preview_roster(s.section_a, "roster.xlsx", content)
+        assert ImportBatch.objects.count() == 0
 
 
 @pytest.mark.parametrize(

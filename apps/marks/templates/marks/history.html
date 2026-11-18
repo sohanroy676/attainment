@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}History - Attainment{% endblock %}
+{% block content %}
+<h1>History of {{ cell.part.code }}</h1>
+<table>
+  <tr><th>When</th><th>Who</th><th>Was</th><th>Now</th><th>Reason</th></tr>
+  {% for c in changes %}
+  <tr><td>{{ c.at }}</td><td>{{ c.by.username|default:"-" }}</td>
+    <td>{% if c.old_state %}{{ c.old_state }}{% if c.old_value is not None %} {{ c.old_value }}{% endif %}{% else %}-{% endif %}</td>
+    <td>{{ c.new_state }}{% if c.new_value is not None %} {{ c.new_value }}{% endif %}</td><td>{{ c.reason }}</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

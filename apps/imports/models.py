@@ -15,6 +15,8 @@ class ImportBatch(TenantRecord):
 
     class Kind(models.TextChoices):
         ROSTER = "roster", "Roster"
+        MARKS = "marks", "Marks"
+        SCRIPTS = "scripts", "Script mapping"
 
     class Status(models.TextChoices):
         PREVIEWED = "previewed", "Previewed"
@@ -28,13 +30,19 @@ class ImportBatch(TenantRecord):
     uploaded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
     )
-    section = models.ForeignKey(Section, on_delete=models.PROTECT, related_name="+")
+    section = models.ForeignKey(
+        Section, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    assessment = models.ForeignKey(
+        "assessments.Assessment", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    file_content = models.BinaryField(null=True, blank=True)  # the uploaded file is kept (F8)
     scope = models.CharField(max_length=10, default="section")  # where roll numbers are unique
     payload = models.JSONField(default=dict)  # parsed rows (personal data stays in this table)
     report = models.JSONField(default=dict)  # counts and row errors shown in the preview
 
     # the audit log records the import by id and counts, never the rows
-    audit_exclude = ("payload", "report", "filename")  # noqa: RUF012
+    audit_exclude = ("payload", "report", "filename", "file_content")  # noqa: RUF012
 
     def __str__(self) -> str:
         return f"{self.kind} {self.status}"

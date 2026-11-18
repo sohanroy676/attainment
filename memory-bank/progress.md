@@ -17,11 +17,12 @@
 - v0.3.0 engine built on `feature/v0.3.0-engine-batch` (2026-11-13): roll-up, PO mapping, batch, targets, per-level precision, aggregation alternatives, offering and batch CLI. 147 engine tests, 97% coverage; R1/R2 PO values and the R3 PO9 rule match without private data.
 - v0.4.0 academics and roster built on `feature/v0.4.0-academics-roster` (2026-11-13): `apps/academics`, `apps/roster`, `apps/imports`, Django admin setup screens writing to the audit log, scope resolver for role containment, roster import UI. 242 tests passing, 8 golden skipped.
 - v0.5.0 outcomes, papers and methods built on `feature/v0.5.0-outcomes-papers-methods` (2026-11-13): `apps/outcomes`, `apps/assessments`, `apps/methodology`, grid/paper/method screens, CO map import. 290 tests pass, 9 skipped (golden data).
+- v0.6.0 marks built on `feature/v0.6.0-marks` (2026-11-13): `apps/marks` (cells, states, history, locking, permissions), grid/template/import/SEE screens, defusedxml. 332 tests pass, 9 skipped (golden data). Not done: Jspreadsheet paste grid and Playwright A11; A10 needs DS-A.
 
 ## In progress
-- Nothing is pushed: `feature/v0.2.0-engine`, `v0.3.0-engine-batch`, `v0.4.0-academics-roster` and `v0.5.0-outcomes-papers-methods` are stacked local branches (each built on the previous). The owner will run all manual tests together later.
+- Nothing is pushed: `feature/v0.2.0-engine`, `v0.3.0-engine-batch`, `v0.4.0-academics-roster` and `v0.5.0-outcomes-papers-methods`, `v0.6.0-marks` are stacked local branches (each built on the previous). The owner will run all manual tests together later.
 - Waiting on the owner for golden data: `scripts/build_ds_a.py` (DS-A) and `scripts/build_ds_b.py` (DS-B). Then `uv run pytest -m golden`.
 - DS-E (two published methods from other colleges) is still needed for the real A10 of v0.3.0.
 
 ## Next
-- Next build: v0.6.0 (marks entry and import) on a branch from `feature/v0.5.0-outcomes-papers-methods`. Release gates for v0.2.0 to v0.5.0 are owed (golden data, manual tests, push, PRs, tags). v0.7.0 is the first end-to-end slice; v1.0.0 is the prototype.
+- Next build: v0.7.0 (results and explanations, the first end-to-end slice) on a branch from `feature/v0.6.0-marks`. Release gates for v0.2.0 to v0.6.0 are owed (golden data, manual tests, push, PRs, tags). v0.7.0 is the first end-to-end slice; v1.0.0 is the prototype.

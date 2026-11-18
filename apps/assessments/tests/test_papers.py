@@ -336,7 +336,7 @@ def test_a8_the_deep_learning_papers_import_with_14_12_and_25_parts(db: None) ->
             assert services.validate_paper(paper) == []
 
 
-# the paper page ------------------------------------------------------------------------------
+# the paper page --------------------------------------------
 def _client(username: str):  # type: ignore[no-untyped-def]
     from django.test import Client
 
