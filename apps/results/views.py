@@ -110,17 +110,7 @@ def explain_page(request: HttpRequest, run_id: uuid.UUID) -> HttpResponse:
     )
     key = request.GET.get("key", "")
     allowed_course = _may_view_course(request, run.offering)
-    sections = {s.name: s for s in run.offering.sections.all()}
-    entries = []
-    for scope, entry in services.explain(run, key):
-        if scope == "course" and allowed_course:
-            entries.append((scope, entry))
-        elif scope.startswith("section "):
-            section = sections.get(scope[8:])
-            if section is not None and has_permission(
-                request.user, "reports.view", "section", section.pk
-            ):
-                entries.append((scope, entry))
+    entries = services.explain_visible(run, key, request.user)
     if not entries and not allowed_course:
         raise PermissionDenied
     return render(

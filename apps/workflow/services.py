@@ -507,3 +507,23 @@ def inbox(user: User) -> list[Task]:
             Task(kind, f"{kind.capitalize()} {label}", offering.pk, programme_id=programme.pk)
         )
     return tasks
+
+
+# signature lines for reports -------------------------------
+@dataclass
+class SignatureLine:
+    kind: str  # approval or signature
+    role: str
+    name: str
+    at: datetime
+
+
+def signatures_of(run: CalculationRun) -> list[SignatureLine]:
+    """Who approved and signed this run, oldest first (for the report's signature block)."""
+    rows = Signature.objects.filter(run=run).order_by("at")
+    return [SignatureLine(s.kind, s.role, s.signer_name, s.at) for s in rows]
+
+
+def batch_signatures_of(run: BatchRun) -> list[SignatureLine]:
+    rows = BatchSignature.objects.filter(run=run).order_by("at")
+    return [SignatureLine(s.kind, s.role, s.signer_name, s.at) for s in rows]

@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Batch report - Attainment{% endblock %}
+{% block content %}
+<h1>Reports: {{ batch.programme.name }}, batch {{ batch.name }}</h1>
+<p><a href="{% url 'results:batch' batch.pk %}">Batch result page</a></p>
+<ul>
+  <li>Department and batch report:
+    <a href="{% url 'reports:batch' batch.pk 'html' %}">view</a> |
+    <a href="{% url 'reports:batch' batch.pk 'pdf' %}">PDF</a> |
+    <a href="{% url 'reports:batch' batch.pk 'xlsx' %}">Excel</a></li>
+</ul>
+{% endblock %}

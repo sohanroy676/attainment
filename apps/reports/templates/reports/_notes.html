@@ -1,0 +1,9 @@
+<h2>Observations</h2>
+{% for text in r.observations %}<p>{{ text|linebreaksbr }}</p>{% empty %}<p class="note">None recorded.</p>{% endfor %}
+<h2>Action plan</h2>
+{% for text in r.plans %}<p>{{ text|linebreaksbr }}</p>{% empty %}<p class="note">None recorded.</p>{% endfor %}
+{% if r.overrides %}
+<h2>Pass-mark overrides applied</h2>
+<table><thead><tr><th>Tool</th><th>Part</th><th>Pass mark</th><th>Reason</th></tr></thead>
+<tbody>{% for tool, part, mark, reason in r.overrides %}<tr><td>{{ tool }}</td><td>{{ part }}</td><td>{{ mark }}</td><td>{{ reason }}</td></tr>{% endfor %}</tbody></table>
+{% endif %}

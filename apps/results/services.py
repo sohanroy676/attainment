@@ -19,6 +19,7 @@ from django.utils import timezone
 
 from apps.academics.models import Batch, CourseOffering, Programme, Section
 from apps.accounts.models import User
+from apps.accounts.services import has_permission
 from apps.assessments import services as papers
 from apps.audit import services as audit
 from apps.marks import services as marks
@@ -316,6 +317,22 @@ def explain(run: CalculationRun, key: str) -> list[tuple[str, dict[str, Any]]]:
             elif co and step in ("ChoiceSelect", "NormaliseStates") and k.split("/")[0] == tool:
                 found.append((scope, entry))
     return found
+
+
+def explain_visible(run: CalculationRun, key: str, user: User) -> list[tuple[str, dict[str, Any]]]:
+    """`explain`, limited to the entries the viewer may see: course entries need `reports.view`
+    over the offering, a section's entries need it over that section."""
+    allowed_course = has_permission(user, "reports.view", "offering", run.offering_id)
+    sections = {s.name: s for s in run.offering.sections.all()}
+    entries = []
+    for scope, entry in explain(run, key):
+        if scope == "course" and allowed_course:
+            entries.append((scope, entry))
+        elif scope.startswith("section "):
+            section = sections.get(scope[8:])
+            if section is not None and has_permission(user, "reports.view", "section", section.pk):
+                entries.append((scope, entry))
+    return entries
 
 
 # indirect values -------------------------------------------
@@ -879,3 +896,9 @@ def batch_gaps(batch: Batch) -> tuple[BatchRun, list[GapRow]] | None:
         if raw[4] is not None:
             targets[code] = Decimal(raw[4])
     return run, _gap_rows(below_target(totals, targets, config.precision, "batch"), config, "batch")
+
+
+def runs_by_id(ids: list[str]) -> dict[str, CalculationRun]:
+    """Course runs by id (the ones a batch run listed as used), with the method version loaded."""
+    rows = CalculationRun.objects.filter(pk__in=ids).select_related("method_version")
+    return {str(r.pk): r for r in rows}

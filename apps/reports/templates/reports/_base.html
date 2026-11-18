@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{% block title %}Report{% endblock %}</title>
+<style>{{ css|safe }}</style>
+</head>
+<body>
+{% if footer.provisional %}<div id="watermark" data-watermark>PROVISIONAL</div>{% endif %}
+<div id="footer" data-footer>
+  <p>{{ footer.college }} | {{ footer.programme }} | batch {{ footer.batch }} | {{ footer.course }} | {{ footer.term }}</p>
+  <p>Method {{ footer.method_version|default:"none" }} | engine {{ footer.engine_version|default:"none" }} | run {{ footer.run_id }} | data status {{ footer.data_status }}</p>
+  <p>Generated <span data-generated>{{ footer.generated_at|date:"Y-m-d H:i" }} UTC</span> | hash ({{ footer.hash_note }}) <span data-hash>{{ footer.content_hash }}</span></p>
+</div>
+{% block body %}{% endblock %}
+</body>
+</html>

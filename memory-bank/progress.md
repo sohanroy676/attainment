@@ -24,10 +24,12 @@
 
 - v0.9.0 department, batch and quality loop built on `feature/v0.9.0-quality` (2026-11-18), six commits: batch roll-up, batch page, batch sign-off and freeze, historic comparison, gap view, quality loop; then A11 speed and A12 isolation tests. Full suite: 505 passed, 15 skipped (golden data); ruff, mypy and migration check clean. Not built: target-revision proposal, Action Taken Report, course-level old-workbook comparison.
 
+- v0.10.0 reports and exports built on `feature/v0.10.0-reports` (2026-11-18): `apps/reports` (footer and watermark context, HTML templates rendered to PDF by WeasyPrint, per-assessment CO sheet, theory and lab analysis, CO-PO/PSO table, Action Taken Report, batch report with an SVG three-batch chart, explanation appendix, Excel for the course and batch tables, NBA flat list, full college export in Excel and JSON, per-college template override). New permission `data.export` (college admin). PDF tests skip where WeasyPrint's libraries (Pango) are missing. On this machine GTK3 runtime was installed with winget and `WEASYPRINT_DLL_DIRECTORIES=C:\Program Files\GTK3-Runtime Win64in` set; all reports then render and the PDF text (via `pypdf`, a dev dependency) carries the numbers and footer. Layout was not looked at by eye (M1, M3, M4). Full suite 524 passed, 16 skipped.
+
 ## In progress
 - Nothing is pushed: `feature/v0.2.0-engine`, `v0.3.0-engine-batch`, `v0.4.0-academics-roster`, `v0.5.0-outcomes-papers-methods`, `v0.6.0-marks`, `v0.7.0-results`, `v0.8.0-workflow` and `v0.9.0-quality` are stacked local branches (each built on the previous). The owner will run all manual tests together later.
 - Waiting on the owner for golden data: `scripts/build_ds_a.py` (DS-A) and `scripts/build_ds_b.py` (DS-B). Then `uv run pytest -m golden`.
 - DS-E (two published methods from other colleges) is still needed for the real A10 of v0.3.0.
 
 ## Next
-- Next: v0.10.0 (reports and exports). Release gates for v0.2.0 to v0.9.0 are owed (golden data, manual tests, push, PRs, tags). v0.7.0 is the first end-to-end slice; v1.0.0 is the prototype.
+- Next: v0.11.0 (hardening, privacy and operations). Check PDFs in Docker first. Release gates for v0.2.0 to v0.9.0 are owed (golden data, manual tests, push, PRs, tags). v0.7.0 is the first end-to-end slice; v1.0.0 is the prototype.

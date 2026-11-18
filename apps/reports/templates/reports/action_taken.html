@@ -1,0 +1,28 @@
+{% extends "reports/_base.html" %}
+{% block title %}Action Taken Report{% endblock %}
+{% block body %}
+<h1>Action Taken Report</h1>
+<p>{{ r.label }} | {{ r.offering.term }} | {{ r.programme.name }}</p>
+<h2>Plans from earlier years and what was done</h2>
+{% for plan in r.earlier %}
+<h2>{{ plan.offering.term }}</h2>
+<p>{{ plan.text|linebreaksbr }}</p>
+<p class="note">Owner: {{ plan.owner.full_name|default:plan.owner.username|default:"-" }}{% if plan.due_date %}, due {{ plan.due_date|date:"Y-m-d" }}{% endif %}</p>
+<ul>
+  {% for a in plan.actions.all %}
+  {% if a.offering_id == r.offering.pk %}
+  <li>Done {{ a.done_on|date:"Y-m-d" }}: {{ a.text|linebreaksbr }}
+    {% for e in a.evidence.all %}<br>Proof: {{ e.name }} ({{ e.content_type }}, {{ e.size|filesizeformat }}, sha256 {{ e.sha256|slice:":12" }})
+    {% endfor %}</li>
+  {% endif %}
+  {% endfor %}
+</ul>
+{% empty %}<p class="note">No earlier plans exist for this course.</p>{% endfor %}
+{% for proof in r.proofs %}
+<div class="proof">
+  <h2>Proof: {{ proof.name }}</h2>
+  {% if proof.image %}<img src="{{ proof.image }}" alt="{{ proof.name }}">{% else %}<p class="note">This is a PDF file kept in the app (sha256 {{ proof.sha256 }}); it is not copied into this report.</p>{% endif %}
+</div>
+{% endfor %}
+{% include "reports/_signoff.html" with signoffs=r.signoffs %}
+{% endblock %}

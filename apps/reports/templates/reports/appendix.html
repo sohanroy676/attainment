@@ -1,0 +1,13 @@
+{% extends "reports/_base.html" %}
+{% block title %}Explanation appendix{% endblock %}
+{% block body %}
+<h1>Explanation appendix</h1>
+<p>{{ r.label }} | {{ r.offering.term }} | {{ r.programme.name }}</p>
+<p class="note">Method {{ footer.method_version }}, engine {{ footer.engine_version }}, input hash {{ r.run.input_hash }}.</p>
+{% for key, entries in explained %}
+<h2>{{ key }}</h2>
+{% for scope, entry in entries %}
+<p><strong>{{ scope|capfirst }} - {{ entry.step }}</strong> {{ entry.key }}: {{ entry.message }}</p>
+{% empty %}<p class="note">Nothing to explain for this value.</p>{% endfor %}
+{% endfor %}
+{% endblock %}

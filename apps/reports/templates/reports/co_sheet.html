@@ -1,0 +1,24 @@
+{% extends "reports/_base.html" %}
+{% block title %}CO attainment by assessment{% endblock %}
+{% block body %}
+<h1>CO attainment by assessment</h1>
+<p>{{ r.label }} | {{ r.offering.term }} | {{ r.programme.name }}, batch {{ footer.batch }}</p>
+{% with p=r.p %}{% include "reports/_checklist.html" %}{% endwith %}
+{% for t in r.tools %}
+<table>
+  <caption>{{ t.tool }}</caption>
+  <thead><tr><th></th>{% for h in r.co_header %}<th>{{ h }}</th>{% endfor %}</tr></thead>
+  <tbody>
+    <tr><th>Students passing (%)</th>{% for x in t.percents %}<td>{{ x }}</td>{% endfor %}</tr>
+    <tr><th>Level</th>{% for x in t.levels %}<td>{{ x }}</td>{% endfor %}</tr>
+  </tbody>
+</table>
+{% if t.questions %}
+<table>
+  <thead><tr><th>Part</th><th>CO</th><th>Passed</th><th>Counted</th><th>%</th></tr></thead>
+  <tbody>{% for q in t.questions %}<tr><td>{{ q.part }}</td><td>{{ q.co }}</td><td>{{ q.passed }}</td><td>{{ q.denominator }}</td><td>{{ q.percent }}{% if q.small_group %} (small group){% endif %}</td></tr>{% endfor %}</tbody>
+</table>
+{% endif %}
+{% empty %}<p class="note">There are no tool results yet.</p>
+{% endfor %}
+{% endblock %}

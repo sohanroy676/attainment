@@ -234,3 +234,24 @@ def record_action(
         if files:
             add_evidence(action, files, actor)
     return action
+
+
+# reading for reports ---------------------------------------
+def observations_of(offering: CourseOffering) -> list[Observation]:
+    return list(Observation.objects.filter(offering=offering).order_by("created_at"))
+
+
+def plans_of(offering: CourseOffering) -> list[ActionPlan]:
+    return list(
+        ActionPlan.objects.filter(offering=offering).select_related("owner").order_by("created_at")
+    )
+
+
+def actions_taken_on(offering: CourseOffering) -> list[ActionTaken]:
+    """Actions recorded on this offering about earlier plans, with their proof files."""
+    return list(
+        ActionTaken.objects.filter(offering=offering)
+        .select_related("plan__offering__term")
+        .prefetch_related("evidence")
+        .order_by("done_on", "created_at")
+    )
