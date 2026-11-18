@@ -38,3 +38,5 @@
 
 ## Next
 - Release gates for v0.2.0 to v1.0.1 (manual tests recorded in `docs/test-reports/`, golden tests, update-rollback test). Then v1.1.0 (method wizard, dry-run diff, two-factor login, reminders, nightly audit job).
+
+- Manual walk-through begun (2026-11-18, owner): Docker start-up problems fixed and written into the checklist. Demo step 3 found two navigation gaps and one permission bug (paper page refused an offering-scoped coordinator). Fixed on `fix/demo-navigation` (commit e8e4d1d): "Set-up" links on the course page, scoped checks on the paper page, two tests, demo script corrected. 81 results, outcomes and sweep tests pass; ruff, mypy, migration check clean; the full suite was not rerun. Pushed on the branch, not merged. Findings recorded in `docs/test-reports/v1.0.0.md`.

@@ -134,5 +134,10 @@ v0.1.0 to v1.0.1 are merged to `main` and tagged; CI is green; feature branches 
 - `gh` auth may be unavailable in cloud sessions; check CI with the GitHub MCP tools.
 - Real mentor workbooks only in gitignored `data/private/`; committed fixtures are anonymised.
 
+## Manual test state (2026-11-18)
+- Owner walked the checklist to demo step 3. Branch `fix/demo-navigation` (pushed, not merged) holds the fixes found so far. Demo steps 4 to 15 and checklist parts 3 onward are not yet walked.
+- Open: a scoped role (coordinator) cannot enter `/admin/` because `User.is_staff` asks for a college-wide right; the paper page now covers the coordinator, so it is a v1.1.0 decision. Step 4 (marks grid) may also lack a link: check from the course page's section links.
+- Docker on the owner's machine: a leftover `attainmenttest-db-1` container holds port 5432; stop it or set `DB_PORT`. All containers were stopped at handoff (`docker compose down`, volumes kept).
+
 ## Next step
 Owner: follow `docs/owner-checklist.md` (run the app by hand, walk the demo script, print reports, restore a backup, bring DS-A and DS-B, ask the mentor the open questions) and bring the findings to the next session. Then: golden tests, fixes from the manual tests, release-gate records, and v1.1.0.
