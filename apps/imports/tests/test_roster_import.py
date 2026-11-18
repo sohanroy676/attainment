@@ -202,7 +202,7 @@ def test_a_failure_halfway_leaves_no_partial_roster(db: None) -> None:
         assert batch.status == ImportBatch.Status.PREVIEWED
 
 
-# parsing ------------------------------------------------------------
+# parsing ---------------------------------------------------
 def test_excel_files_are_read_and_whole_numbers_typed_as_floats_become_text(db: None) -> None:
     college = make_college("a")
     s = make_structure(college)
@@ -270,7 +270,7 @@ def test_the_audit_log_records_the_import_by_counts_not_by_rows(db: None) -> Non
         assert "committed" in blob
 
 
-# screens ------------------------------------------------------------
+# screens ---------------------------------------------------
 def _login(username: str) -> Client:
     client = Client()
     assert (

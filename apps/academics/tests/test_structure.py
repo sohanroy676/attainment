@@ -88,7 +88,7 @@ def test_the_same_department_code_can_exist_in_two_colleges(db: None) -> None:
         assert Department.objects.count() == 1
 
 
-# A10 ------------------------------------------------------------------------------------------
+# A10 -------------------------------------------------------
 def test_a10_lecturer_sees_only_assigned_sections(db: None) -> None:
     college = make_college("a")
     s = make_structure(college)
@@ -153,7 +153,7 @@ def test_assigning_a_section_of_another_offering_is_refused(db: None) -> None:
             assign_faculty(lecturer, s.offering, foreign)
 
 
-# A11 and the setup screens (Django admin) ---------------------------------------------------------
+# A11 and the setup screens (Django admin) ------------------
 def _login(username: str) -> Client:
     client = Client()
     response = client.post("/accounts/login/", {"username": username, "password": PASSWORD})

@@ -59,7 +59,7 @@ def test_a4_unknown_mode_is_rejected() -> None:
         _precision(co={"mode": "ceiling", "places": 2})
 
 
-# AggregateToCO alternatives ----------------------------------------------------------------------
+# AggregateToCO alternatives --------------------------------
 PAPER = parts([("a", "1", 10, "CO1", None), ("b", "2", 30, "CO1", None)])
 ROWS = {
     "s1": {"a": 10, "b": 0},

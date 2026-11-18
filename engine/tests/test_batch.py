@@ -137,7 +137,7 @@ def test_a_course_result_feeds_the_batch() -> None:
     assert isinstance(result, CourseResult) and isinstance(result.po["PO1"], CoValue)
 
 
-# command line -----------------------------------------------------------------------------
+# command line ----------------------------------------------
 def _write(tmp_path: Path, name: str, body: object) -> Path:
     path = tmp_path / name
     path.write_text(json.dumps(body), encoding="utf-8")

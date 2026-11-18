@@ -74,7 +74,7 @@ def test_compare_with_displayed_uses_the_truncated_value() -> None:
     assert run(shown, data_hi).result.attained is False  # displayed 2.9 < 2.95
 
 
-# A12 ----------------------------------------------------------------------------------------
+# A12 -------------------------------------------------------
 def test_a12_merge_of_level_3_and_level_2_is_2_5() -> None:
     cfg = {"behaviour": "question_wise", "pass_pct": 60}
     merged = simple_method(
@@ -104,7 +104,7 @@ def test_merge_uses_the_one_tool_that_covers_the_co() -> None:
     assert out.result.merged["INTERNAL"]["CO2"].value == 3
 
 
-# A11 ----------------------------------------------------------------------------------------
+# A11 -------------------------------------------------------
 def _missing_setup(rule: str) -> tuple[MethodConfig, CourseInput]:
     cfg = {"behaviour": "question_wise", "pass_pct": 60}
     m = simple_method({"A": cfg, "B": cfg}, {"A": "0.5", "B": "0.5"}, missing_data=rule)
@@ -170,7 +170,7 @@ def test_course_attainment_ignores_cos_with_no_value() -> None:
     assert out.result.course == 3
 
 
-# A15 ----------------------------------------------------------------------------------------
+# A15 -------------------------------------------------------
 def test_a15_same_input_twice_gives_identical_output_and_hash() -> None:
     data = _levels_course({"INTERNAL": 3, "SEE": 2, "QUIZ": 3, "ASSIGN": 3})
     first = run(_direct_method(), data)
@@ -201,7 +201,7 @@ def test_a15_student_order_does_not_change_the_result() -> None:
     )
 
 
-# the trace (M2) -------------------------------------------------------------------------------
+# the trace (M2) --------------------------------------------
 def test_trace_explains_a_co_value_part_by_part() -> None:
     paper = parts([("q3", "3", 4, "CO2", None), ("q12a", "12", 4, "CO2", "G")])
     rows = {f"s{i}": {"q3": 4, "q12a": 4 if i < 3 else None} for i in range(10)}

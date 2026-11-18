@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}{{ version }} - Attainment{% endblock %}
+{% block content %}
+<h1>{{ version.method.name }}, version {{ version.number }}</h1>
+<p>Status: <strong>{{ version.get_status_display }}</strong>{% if version.effective_from %}, effective from {{ version.effective_from }}{% endif %}{% if version.effective_to %} to {{ version.effective_to }}{% endif %}</p>
+{% if version.content_hash %}<p>Content hash: <code>{{ version.content_hash }}</code></p>{% endif %}
+{% if messages %}<ul class="errorlist">{% for message in messages %}<li>{{ message }}</li>{% endfor %}</ul>{% endif %}
+<form method="post">
+  {% csrf_token %}
+  <textarea name="config_text" rows="30" cols="90"{% if not editable %} readonly{% endif %}>{{ text }}</textarea>
+  {% if editable %}
+  <p><button type="submit" name="action" value="save">Save draft</button></p>
+  <p><label for="effective_from">Start date</label><input id="effective_from" name="effective_from" type="date">
+     <button type="submit" name="action" value="activate">Save and activate</button></p>
+  {% else %}
+  <p>This version is {{ version.get_status_display|lower }} and cannot be edited, so every result that used it can be explained later.</p>
+  <button type="submit" name="action" value="copy">Create a new draft from this version</button>
+  {% endif %}
+</form>
+<p><a href="{% url 'methodology:list' %}">All methods</a></p>
+{% endblock %}

@@ -53,7 +53,7 @@ def test_r2_po_and_pso_values_equal_the_colleges_report() -> None:
     assert _po(R2_FINAL) == R2_PO
 
 
-# R3 batch: direct values as printed, one course carrying them all ------------------------------
+# R3 batch: direct values as printed, one course carrying them all ---
 R3_DIRECT = {"PO1": "2.7999", "PO9": "2.8242", "PO11": "2.7000"}
 R3_TARGET = {"PO1": "2.55", "PO9": "2.86", "PO11": "2.75"}
 R3_TOTAL_4DP = {"PO1": "2.8399", "PO9": "2.8594", "PO11": "2.7600"}

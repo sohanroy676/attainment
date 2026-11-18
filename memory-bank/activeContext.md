@@ -1,7 +1,7 @@
 # Active Context
 
 ## Current focus
-v0.2.0 to v0.4.0 are built locally as stacked branches (no push yet; owner runs manual tests later, all at once). Next build: v0.5.0 (outcomes, question papers, methods).
+v0.2.0 to v0.4.0 are built locally as stacked branches (no push yet; owner runs manual tests later, all at once). Next build: v0.6.0 (marks entry and import).
 
 ## Decisions (settled, do not re-ask)
 - Stack: Python 3.12, uv, Django 5.2 LTS, PostgreSQL 16+, HTMX; pure `engine/` package with `Decimal` (ADRs 0002 to 0004).
@@ -55,6 +55,13 @@ v0.2.0 to v0.4.0 are built locally as stacked branches (no push yet; owner runs 
 - Role containment: `accounts.services.register_scope_resolver`; academics registers one so department and programme roles cover their sections. `sections_visible_to(user)` is the access query for lecturers.
 - Django admin is the setup UI. `User.is_staff` and `has_perm` delegate to the one permission service (`structure.manage`, `roster.manage`). Admin logs through `AuditedModelAdmin`, not Django's LogEntry.
 - Roster import stores parsed rows in `ImportBatch.payload` (personal data; tenant-protected, excluded from audit). Any row error rejects the whole file; confirm re-plans and refuses if the roster changed since the preview.
+
+## v0.5.0 design choices (settled)
+- A paper's choice groups live on the paper (`ChoiceGroup`); the engine takes them inside the method tool config (`choice: {group: rule}`). The results module (v0.7.0) must inject `assessments.services.engine_choice_rules(paper)` into the tool config, for tools where the method says to apply them (R1 does not apply Internal-II best 4 of 6; the variant that does gives CO5 46.12). `engine_parts(paper)` gives the engine's part dictionaries; `approved_overrides(offering)` only ever returns approved overrides.
+- Part code (`QuestionPart.code`) is the engine part id, unique within the paper; label is display only.
+- Method versions: the exact JSON text is stored (`config_text`); `content_hash` is SHA-256 of the canonical form, set at activation. A DB trigger makes published versions immutable (only active to retired plus `effective_to` may change) and undeletable.
+- Method resolution: levels university, college, programme, course; most specific wins; a locked wider level always wins; assigning below a locked level is refused. Date for an offering defaults to its academic year's start date.
+- `User.ADMIN_PERMISSION` maps admin app labels to permissions (outcomes: `outcomes.edit`, assessments: `paper.edit`, methodology: `method.edit`).
 
 ## Environment notes
 - Write files as UTF-8, no BOM, LF endings.

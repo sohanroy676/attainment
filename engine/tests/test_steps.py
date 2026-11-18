@@ -34,7 +34,7 @@ def percent(result: RunOutput) -> Decimal:
     return value
 
 
-# A6 ---------------------------------------------------------------------------------------
+# A6 --------------------------------------------------------
 @pytest.mark.parametrize(("boundary", "expected"), [(">=", 100), (">", 0)])
 def test_a6_mark_exactly_at_the_pass_mark(boundary: str, expected: int) -> None:
     paper = parts([("p", "1", 3, "CO1", None)])
@@ -43,7 +43,7 @@ def test_a6_mark_exactly_at_the_pass_mark(boundary: str, expected: int) -> None:
     assert percent(out) == expected
 
 
-# A8 ---------------------------------------------------------------------------------------
+# A8 --------------------------------------------------------
 def _denominator_course() -> CourseInput:
     paper = parts([("c", "1", 4, "CO1", None), ("x", "2", 4, "CO1", "G")])
     rows: dict[str, dict[str, Any]] = {}
@@ -79,7 +79,7 @@ def test_denominator_modes_enrolled_and_fixed() -> None:
     assert percent(run(qw_method(denominator="fixed", fixed_n=20), enrolled)) == 25
 
 
-# blank, 0 and absent are different -----------------------------------------------------------
+# blank, 0 and absent are different -------------------------
 def test_blank_zero_and_absent_are_different_states() -> None:
     paper = parts([("p", "1", 4, "CO1", "G")])
     rows = {"zero": {"p": 0}, "blank": {"p": None}, "gone": {"p": "A"}, "ok": {"p": 4}}
@@ -98,7 +98,7 @@ def test_normalise_never_turns_blank_into_zero() -> None:
     assert out["s"]["p"].state is State.BLANK
 
 
-# overrides ----------------------------------------------------------------------------------
+# overrides -------------------------------------------------
 def test_per_part_override_changes_the_pass_mark_and_is_traced_with_its_reason() -> None:
     paper = parts([("p", "1", "3.5", "CO1", None)])
     data = course([assessment("T", paper, {f"s{i}": {"p": 2} for i in range(4)})])
@@ -112,7 +112,7 @@ def test_per_part_override_changes_the_pass_mark_and_is_traced_with_its_reason()
     assert "college practice" in out.trace.text()
 
 
-# ChoiceSelect (A9, and the analogue of A4/A5) -----------------------------------------------
+# ChoiceSelect (A9, and the analogue of A4/A5) --------------
 def _sec_paper(extra_parts_q17: int = 3) -> tuple[Part, ...]:
     spec = [(f"{n}{s}", str(n), 4, "CO1", "G") for n in range(11, 17) for s in "ab"]
     spec += [(f"17{s}", "17", 4, "CO1", "G") for s in "abc"[:extra_parts_q17]]
@@ -174,7 +174,7 @@ def test_best_four_of_six_keeps_four_and_drops_the_lowest_for_a_five_answer_stud
     assert all(_dropped(out[f"s{i}"]) == set() for i in range(65))
 
 
-# A10 ----------------------------------------------------------------------------------------
+# A10 -------------------------------------------------------
 @pytest.mark.parametrize(
     ("pct", "level", "status"),
     [("9.99", None, "blocked"), ("10.00", 1, "ok"), ("50.00", 2, "ok"), ("60.00", 3, "ok")],
@@ -205,7 +205,7 @@ def test_a10_below_lowest_band_can_use_zero_or_a_set_value(use: object, expected
     assert (value.level, value.status, value.flag is not None) == (expected, "ok", True)
 
 
-# A13 ----------------------------------------------------------------------------------------
+# A13 -------------------------------------------------------
 @pytest.mark.parametrize(("rule", "expected"), [("zero", 50), ("skip", 100)])
 def test_a13_quiz_absent_handling(rule: str, expected: int) -> None:
     paper = parts([(f"i{k}", str(k), 5, None, None) for k in range(3)])
@@ -246,7 +246,7 @@ def test_single_total_lab_with_a_pass_mark() -> None:
     )  # ok passes at exactly 18; edge has 17; the absent student is excluded
 
 
-# precision ------------------------------------------------------------------------------------
+# precision -------------------------------------------------
 def test_t9_rounding_modes_are_explicit_and_match_excel() -> None:
     value = Decimal("2.845")
     assert quantize(value, 2, "truncate") == Decimal("2.84")
