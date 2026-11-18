@@ -9,6 +9,9 @@ What this version does not do, or does with a caveat. Items marked (owner) wait 
 - Which result the college treats as official, 2.18 (strict 60%) or 2.32 (approved pass marks), is a college decision (owner).
 - Course-level comparison against old workbooks is not built; the comparison is at batch level.
 
+## Navigation
+- There is no menu. The home page links to My tasks and the audit log; the marks grid, result pages and reports are reached from task links, from each other, or by address (`docs/demo-script.md` lists them).
+
 ## Entering marks
 - The marks grid is a plain form (one box per cell) with an Excel template for bulk entry. The spreadsheet-style grid with paste is not built yet.
 - Excel uploads read stored values only; a file with a formula that was never saved with its result is refused with the cell named.

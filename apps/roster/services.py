@@ -225,6 +225,15 @@ def current_identifier(
     return None if row is None else row.value
 
 
+def enrolments_in(section: Section) -> list[Enrolment]:
+    """Current enrolments of one section, in the order they were made."""
+    return list(
+        Enrolment.objects.filter(section=section, status=Enrolment.Status.ENROLLED)
+        .select_related("student")
+        .order_by("created_at")
+    )
+
+
 def current_identifiers(
     student_ids: list[uuid.UUID], kind: str = Kind.ROLL_NO, section: Section | None = None
 ) -> dict[uuid.UUID, str]:

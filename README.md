@@ -2,7 +2,7 @@
 
 A free, configurable web app that automates OBE (outcome-based education) CO/PO attainment for any college. Lecturers enter marks per roll number; the app calculates course outcomes, programme outcomes and batch roll-ups, and explains every number.
 
-**Status: v0.1.0 (foundation and tenancy).** You can start the app, log in as demo users of two isolated colleges and nothing else yet: marks, the engine and results arrive in later versions. See `ROADMAP.md` for the build order; v1.0.0 is the prototype.
+**Status: v1.0.0 prototype (built, release gate still owed).** Marks entry and import, the calculation engine, results with explanations, approval and signing, batch roll-up, quality loop, PDF and Excel reports, privacy and backup tools. Two demo colleges with synthetic data: `seed_demo` then `seed_demo_course` (see `docs/demo-script.md`). Guides: `docs/user-guide.md`, `docs/admin-guide.md`, `docs/rules-guide/README.md`; limits and open items: `docs/known-limits.md`, `docs/open-items.md`. See `ROADMAP.md` for the build order.
 
 ## What it is
 - Calculates CO, PO and PSO attainment from marks, using methods stored as versioned configuration (levels, thresholds, weights, tools, rounding).
