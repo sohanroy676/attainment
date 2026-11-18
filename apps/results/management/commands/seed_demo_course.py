@@ -109,6 +109,8 @@ class Command(BaseCommand):
                     self.stdout.write(f"Demo college {code.upper()} already has the course.")
                     continue
                 self._seed(code)
+            offering_id = uuid.uuid5(NAMESPACE, f"{code}:offering")
+            self.stdout.write(f"  college {code.upper()}: /results/{offering_id}/ (user {code}.iqac)")
             done.append(code.upper())
         if done:
             self.stdout.write(f"Added the demo course to college(s) {', '.join(done)}.")

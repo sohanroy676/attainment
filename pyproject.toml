@@ -1,6 +1,6 @@
 [project]
 name = "attainment"
-version = "0.1.0"
+version = "1.0.0"
 description = "Free, configurable OBE CO/PO attainment automation for colleges."
 readme = "README.md"
 license = { text = "MIT" }

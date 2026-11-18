@@ -2,6 +2,10 @@
 
 ## Unreleased (built, not yet released; manual tests and golden data pending)
 
+### v1.0.0 - the prototype (built, not yet released)
+- Acceptance suite: one named test for each of the 20 scenarios (`tests/acceptance`). Demo data: `seed_demo_course` adds a synthetic Deep Learning like course with marks to both demo colleges (roll schemes 1.. per section and 1-130 across the batch). Demo script, open-items list, test report.
+- Not a release: the release gate (golden data from the real workbooks, manual tests, CI on a pushed branch, mentor notes) is owed.
+
 ### v0.11.0 - hardening, privacy and operations (built, not yet released)
 - Security: decompression-bomb guard on every Excel upload; per-user rate limits on PDF rendering, uploads and the full export; `verify_audit` command (every college, non-zero exit on a broken chain); `create_college` command; dependency audit in CI; `docs/security-review.md`.
 - Isolation sweep: every record endpoint found in the URL configuration is requested with GET and POST as six users of another college.
