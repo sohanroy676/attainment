@@ -95,6 +95,39 @@ def plan_add(request: HttpRequest, offering_id: uuid.UUID) -> HttpResponse:
 
 @login_required
 @require_POST
+def observation_edit(
+    request: HttpRequest, offering_id: uuid.UUID, observation_id: uuid.UUID
+) -> HttpResponse:
+    offering = _offering(offering_id)
+    observation = get_object_or_404(Observation, pk=observation_id, offering=offering)
+    try:
+        services.edit_observation(observation, request.POST.get("text", ""), request.user)
+        add_message(request, constants.SUCCESS, "Observation updated.")
+    except (ValidationError, PermissionDenied) as error:
+        _say(request, error)
+    return redirect("quality:offering", offering.pk)
+
+
+@login_required
+@require_POST
+def plan_edit(request: HttpRequest, offering_id: uuid.UUID, plan_id: uuid.UUID) -> HttpResponse:
+    offering = _offering(offering_id)
+    plan = get_object_or_404(ActionPlan, pk=plan_id, offering=offering)
+    try:
+        services.edit_plan(
+            plan,
+            request.POST.get("text", ""),
+            _date(request.POST.get("due_date", "")),
+            request.user,
+        )
+        add_message(request, constants.SUCCESS, "Action plan updated.")
+    except (ValidationError, PermissionDenied) as error:
+        _say(request, error)
+    return redirect("quality:offering", offering.pk)
+
+
+@login_required
+@require_POST
 def action_add(request: HttpRequest, offering_id: uuid.UUID, plan_id: uuid.UUID) -> HttpResponse:
     offering = _offering(offering_id)
     plan = get_object_or_404(

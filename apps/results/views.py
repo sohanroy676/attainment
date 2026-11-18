@@ -62,6 +62,8 @@ def course_page(request: HttpRequest, offering_id: uuid.UUID) -> HttpResponse:
             "sections": sections,
             "can_indirect": has_permission(request.user, "indirect.enter"),
             "differs": services.differs_from_signed(offering, programme),
+            "overrides": services.overrides_of(offering),
+            "proposal": None if run is None else services.proposed_target(run),
         },
     )
 

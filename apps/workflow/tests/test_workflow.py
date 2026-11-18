@@ -526,7 +526,9 @@ def test_a9_pages_of_another_college_are_not_found_or_forbidden(committed_db: No
     url = f"/workflow/{a.offering.pk}/{a.programme.pk}/"
     assert client.get(url).status_code == 404
     assert client.post(url + "approve/").status_code == 404
-    assert client.get("/workflow/audit/").status_code == 403  # the HoD's audit right is scoped
+    # the HoD reads the audit events of their own department (carry-over); test_carry_over.py
+    # checks that nothing outside it shows
+    assert client.get("/workflow/audit/").status_code == 200
     assert b.offering.pk != a.offering.pk
 
 

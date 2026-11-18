@@ -18,4 +18,5 @@ Each item has an owner and the version where it is needed. "Owner" is the person
 | Indirect survey workbooks | Mentor | v1.3.0 | indirect is an entered value |
 | Manual tests M1 to M5 of every version from v0.1.0 | Owner | release gates | none run independently |
 | Push the stacked branches, one PR each, CI, tags | Owner | release gates | nothing is pushed |
-| Spreadsheet-style marks grid with paste (Jspreadsheet CE) and its browser test | Team | later in v1.0.x | a form grid and an Excel template exist |
+| Marks grid: paste from Excel now works (small script, browser-tested); a full spreadsheet component (Jspreadsheet CE) is not used | Owner to confirm | later | decide whether the paste script is enough |
+| Course-level comparison with old workbooks; SupportGrant enforcement (needs a platform-admin role); DS-A importer counts | Team and owner | v1.1.0 or later | not built |

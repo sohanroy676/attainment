@@ -122,6 +122,15 @@ v0.2.0 to v0.4.0 are built locally as stacked branches (no push yet; owner runs 
 - `college_context` no longer issues SQL in its `finally` after an error broke the transaction.
 - PDF tests need GTK3 on Windows: `winget install tschoonj.GTKForWindows`, then `WEASYPRINT_DLL_DIRECTORIES="C:\Program Files\GTK3-Runtime Win64in"`.
 
+## v1.0.0 and carry-over choices (settled)
+- Acceptance suite lives in `tests/acceptance/test_scenarios.py`, one `test_scenario_NN_*` per scenario. Scenarios 1 and 2 are checked on hand-worked synthetic numbers (course 2.92, PO1 2.8933); the real R1, R2, R3 checks are the golden tests and still skip until DS-A and DS-B exist.
+- Demo: `seed_demo` then `seed_demo_course` (A: rolls 1.. per section, 40+27; B: rolls 1-66 and 67-130 across the batch, 66+64). The structure uses the same placeholder ids `seed_demo` gave the demo accounts, so their scopes work.
+- Marks grid paste: `static/js/grid-paste.js` (fills boxes from a pasted block, arrow keys, "Pasted N cells" notice). This replaces the settled "Jspreadsheet CE" choice for now because the grid keeps its server-rendered form (labelled boxes, optimistic-locking fields, works without JavaScript) and needs no dependency; Jspreadsheet stays a possible later swap. Say so to the owner.
+- Browser tests: `tests/e2e/conftest.py` starts Django's live-server thread itself (pytest-django's `live_server` flushes the DB, which the app role may not do); DB reads in a test must happen outside `with sync_playwright()`.
+- Audit viewer scope: `workflow.services.audit_scope(user)`: college-wide right reads all; a department right reads events whose entity id is a department, programme, batch, offering, section, paper, run, stage in it (single mark events are college-wide only).
+- Target proposal is display only (`results.services.proposed_target`), never applied; the default rule is manual.
+- Still not built: SupportGrant enforcement (needs a platform-admin role), course-level old-workbook comparison, DS-A importer counts, golden data.
+
 ## Environment notes
 - Write files as UTF-8, no BOM, LF endings.
 - `gh` auth may be unavailable in cloud sessions; check CI with the GitHub MCP tools.
