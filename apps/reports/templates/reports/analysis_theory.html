@@ -1,0 +1,12 @@
+{% extends "reports/_base.html" %}
+{% block title %}Course attainment analysis{% endblock %}
+{% block body %}
+<h1>{% block heading %}Theory course CO attainment analysis{% endblock %}</h1>
+<p>{{ r.label }} | {{ r.offering.term }} | {{ r.programme.name }}, batch {{ footer.batch }} | sections {{ r.sections|join:", " }}</p>
+{% with p=r.p %}
+{% include "reports/_checklist.html" %}
+{% include "reports/_result_tables.html" %}
+{% endwith %}
+{% include "reports/_notes.html" %}
+{% include "reports/_signoff.html" with signoffs=r.signoffs %}
+{% endblock %}

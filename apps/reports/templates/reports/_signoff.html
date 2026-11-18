@@ -1,0 +1,12 @@
+<div class="sign">
+  <h2>Sign-off</h2>
+  {% if signoffs %}
+  <p class="note">Recorded in the app:</p>
+  <ul>{% for s in signoffs %}<li>{{ s.kind|capfirst }} by {{ s.name }} ({{ s.role }}) on {{ s.at|date:"Y-m-d H:i" }}</li>{% endfor %}</ul>
+  {% endif %}
+  <table>
+    <tr><th>Course lecturer</th><th>Course coordinator</th><th>Head of department</th><th>Principal</th></tr>
+    <tr><td></td><td></td><td></td><td></td></tr>
+    <tr><th>Date</th><th>Date</th><th>Date</th><th>Date</th></tr>
+  </table>
+</div>

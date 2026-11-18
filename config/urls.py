@@ -17,5 +17,6 @@ urlpatterns = [
     path("workflow/", include("apps.workflow.urls")),
     path("results/", include("apps.results.urls")),
     path("quality/", include("apps.quality.urls")),
+    path("reports/", include("apps.reports.urls")),
     path("", home, name="home"),
 ]

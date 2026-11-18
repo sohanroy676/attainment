@@ -1,0 +1,15 @@
+{% extends "reports/_base.html" %}
+{% block title %}CO-PO and PSO table{% endblock %}
+{% block body %}
+<h1>CO-PO / PSO table</h1>
+<p>{{ r.label }} | {{ r.offering.term }} | {{ r.programme.name }}, batch {{ footer.batch }}</p>
+{% with p=r.p %}{% include "reports/_checklist.html" %}{% endwith %}
+<table>
+  <thead><tr><th>CO</th><th>Final attainment</th>{% for c in r.po_codes %}<th>{{ c }}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for row in r.co_rows %}<tr><th>{{ row.co }}</th><td>{{ row.final }}</td>{% for s in row.strengths %}<td>{{ s }}</td>{% endfor %}</tr>{% endfor %}
+  {% if r.course_row %}<tr><th>Course</th><td>{{ r.p.course_text }}</td>{% for v in r.course_row %}<td>{{ v }}</td>{% endfor %}</tr>{% endif %}
+  </tbody>
+</table>
+<p class="note">Mapping strengths are 1 to 3; blank means not mapped. The last row is the PO and PSO attainment of the course.</p>
+{% endblock %}

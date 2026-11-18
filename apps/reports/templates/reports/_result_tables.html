@@ -1,0 +1,16 @@
+{% for table in p.tables %}
+<table>
+  <caption>{{ table.title }}</caption>
+  <thead><tr><th></th>{% for h in table.header %}<th>{{ h }}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for label, cells in table.rows %}
+  <tr><th>{{ label }}</th>{% for c in cells %}<td>{{ c.text }}{% if c.edge %} *{% endif %}</td>{% endfor %}</tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endfor %}
+<p><strong>Course attainment: {{ p.course_text }}</strong>
+  {% if p.course_unrounded %}(unrounded {{ p.course_unrounded }}){% endif %}
+  {% if p.target %}| target {{ p.target }}: {% if p.attained %}Attained{% else %}Not attained{% endif %}{% endif %}</p>
+{% if p.indirect_label %}<p class="note">Indirect values are {{ p.indirect_label }}.</p>{% endif %}
+{% if p.flags %}<ul class="note">{% for f in p.flags %}<li>{{ f }}</li>{% endfor %}</ul>{% endif %}

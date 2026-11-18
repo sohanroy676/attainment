@@ -1,0 +1,5 @@
+{% if not p.complete %}
+<div class="note"><strong>Provisional.</strong> This result is not complete.
+  {% if p.checklist %}<ul>{% for item in p.checklist %}<li>{{ item }}</li>{% endfor %}</ul>{% endif %}
+</div>
+{% endif %}

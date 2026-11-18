@@ -6,7 +6,8 @@
 {% if messages %}<ul>{% for message in messages %}<li>{{ message }}</li>{% endfor %}</ul>{% endif %}
 {% if differs %}<p><strong>Differs from signed:</strong> this result no longer matches the signed version.</p>{% endif %}
 <p><a href="{% url 'workflow:stage' offering.pk programme.pk %}">Approval status</a>
-  | <a href="{% url 'results:gaps' offering.pk %}?programme={{ programme.pk }}">Gaps and weakest questions</a></p>
+  | <a href="{% url 'results:gaps' offering.pk %}?programme={{ programme.pk }}">Gaps and weakest questions</a>
+  | <a href="{% url 'reports:course_index' offering.pk %}">Reports</a></p>
 {% if p %}
 {% include "results/_tables.html" %}
 <p>Sections:

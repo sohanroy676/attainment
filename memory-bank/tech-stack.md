@@ -5,7 +5,7 @@ Versions are pinned in `pyproject.toml` and `uv.lock` at v0.1.0. Design source: 
 ## Runtime
 - Python 3.12, uv, Django 5.2 LTS, PostgreSQL 16+ (RLS), HTMX 2.x
 - Marks grid: Jspreadsheet CE (fallback Tabulator). Charts: Chart.js 4
-- Pydantic 2 (method schema), openpyxl (Excel), defusedxml, WeasyPrint (PDF)
+- Pydantic 2 (method schema), openpyxl (Excel), defusedxml, WeasyPrint (PDF; needs Pango, present in the Docker image, absent on this Windows machine unless the GTK3 runtime is installed and `WEASYPRINT_DLL_DIRECTORIES` points at its bin folder)
 - django-simple-history, django-axes, django-otp (v1.1)
 - Gunicorn behind Caddy, Docker + Compose
 

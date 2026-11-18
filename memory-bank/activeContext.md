@@ -1,7 +1,7 @@
 # Active Context
 
 ## Current focus
-v0.2.0 to v0.4.0 are built locally as stacked branches (no push yet; owner runs manual tests later, all at once). v0.8.0 (workflow and governance) and v0.9.0 (department, batch and quality loop) are built and verified locally. Next build: v0.10.0 (reports and exports).
+v0.2.0 to v0.4.0 are built locally as stacked branches (no push yet; owner runs manual tests later, all at once). v0.8.0 (workflow and governance) and v0.9.0 (department, batch and quality loop) are built and verified locally. v0.10.0 (reports and exports) is built locally on `feature/v0.10.0-reports`. Next build: v0.11.0.
 
 ## Decisions (settled, do not re-ask)
 - Stack: Python 3.12, uv, Django 5.2 LTS, PostgreSQL 16+, HTMX; pure `engine/` package with `Decimal` (ADRs 0002 to 0004).
@@ -102,6 +102,15 @@ v0.2.0 to v0.4.0 are built locally as stacked branches (no push yet; owner runs 
 - Gap view: `engine/gaps.py` (`below_target`, `weakest_questions`) reads the stored final values and the `QuestionPass` trace entries; `results.course_gaps` and `results.batch_gaps` feed the pages and the quality draft.
 - Quality loop (`apps/quality`): observations, action plans (carry to later offerings of the same course through `previous_plans`), actions taken (later offering only, date not in the future), proof files. Edit right is `observations.edit` over the offering or one of its sections; view is `reports.view` or the edit right. Files: PDF, PNG, JPEG only, type from the file's own bytes, 5 MB each, 10 per action, 200 MB per college (`QUALITY_COLLEGE_MAX_BYTES`), stored in the database, served as attachments with a sandbox CSP. `record_action` saves an action and its files together. No editing or deleting of observations and plans.
 - Tests: `apps/tenancy/tests/test_v090_isolation.py` (A12 sweep over every new page and endpoint, plus forced-RLS check), `apps/results/tests/test_batch_speed.py` (A11, marker `perf`). Do not use bare `.first()` on UUID-keyed rows to pick a record in a test.
+
+## v0.10.0 design choices (settled)
+- `apps/reports` has no tables. `context.py` arranges stored results (`present`, `present_batch`, `course_gaps`, `comparison_columns`, `quality`, `workflow.signatures_of`); `render.py` picks `reports/<college code>/<name>.html` before `reports/<name>.html` and turns HTML into a PDF (`url_fetcher` only allows `data:`); `excel.py`, `export.py`, `chart.py` (inline SVG).
+- Footer: college, programme, batch, course, term, method version, engine version, run id, data status, generated time (`<span data-generated>`, left out when comparing regenerated reports), hash. Signed run: the stored `content_hash`; otherwise the computed hash with a note that it is not signed. Watermark only when the run is not complete.
+- URLs: `/reports/course/<offering>/<co_sheet|analysis|co_po|action_taken|appendix>.<html|pdf|xlsx>` (`?programme=` when the course serves two), `/reports/batch/<batch>/report.<fmt>`, `/reports/nba.xlsx` (`reports.view` college-wide), `/reports/export.<xlsx|json>` (`data.export`, audited as `college.exported`). Course reports need `reports.view` over the offering (a section-scoped lecturer is refused, as on the result page).
+- Excel cells hold the page's text, so a reopened file equals the page; text starting with "=" is stored as text.
+- Full export: every `TenantModel` table, college only; password hashes and binary file contents left out.
+- Where PDF libraries are missing the PDF route returns 503 with a message; PDF tests skip. Dockerfile installs `libpango-1.0-0`, `libpangoft2-1.0-0`, `fonts-dejavu-core`.
+- Open: layouts follow the mentor's documents (M1); the Action Taken Report embeds PNG and JPEG proofs only (PDF proofs are listed); no real-data golden checks (A3 for R3); the A7 test measures rendering of an in-memory batch, not a 512 MB container.
 
 ## Environment notes
 - Write files as UTF-8, no BOM, LF endings.

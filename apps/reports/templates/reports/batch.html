@@ -1,0 +1,45 @@
+{% extends "reports/_base.html" %}
+{% block title %}Department and batch report{% endblock %}
+{% block body %}
+<h1>Department and batch report</h1>
+<p>{{ r.programme.name }} | batch {{ r.batch.name }} | method {{ r.p.method_name }}
+  {% if r.run.include_unsigned %}| includes courses not yet signed{% endif %}</p>
+{% if not r.p.complete %}<div class="note"><strong>Provisional.</strong>{% if r.p.checklist %}<ul>{% for item in r.p.checklist %}<li>{{ item }}</li>{% endfor %}</ul>{% endif %}</div>{% endif %}
+<table>
+  <caption>PO and PSO attainment (indirect values are entered, not measured)</caption>
+  <thead><tr><th>Outcome</th><th>Courses</th><th>Direct</th><th>Indirect</th><th>Total</th><th>Target</th><th>Status</th></tr></thead>
+  <tbody>{% for x in r.p.rows %}<tr><th>{{ x.code }}</th><td>{{ x.courses }}</td><td>{{ x.direct }}</td><td>{{ x.indirect }}</td><td>{{ x.total }}</td><td>{{ x.target }}</td><td>{{ x.status }}{% if x.flag %} ({{ x.flag }}){% endif %}</td></tr>{% endfor %}</tbody>
+</table>
+{% if r.p.counts %}
+<table>
+  <caption>Courses by category</caption>
+  <thead><tr><th>Category</th><th>Attained</th><th>Not attained</th><th>No result</th></tr></thead>
+  <tbody>{% for label, a, n, x in r.p.counts %}<tr><th>{{ label }}</th><td>{{ a }}</td><td>{{ n }}</td><td>{{ x }}</td></tr>{% endfor %}</tbody>
+</table>
+{% endif %}
+<table>
+  <caption>Courses used: attainment by course and term, with PO and PSO values</caption>
+  <thead><tr><th>Course</th><th>Term</th><th>Category</th><th>Signed</th><th>Course</th><th>Result</th>{% for c in r.codes %}<th>{{ c }}</th>{% endfor %}</tr></thead>
+  <tbody>{% for c in r.courses %}<tr><td>{{ c.name }}</td><td>{{ c.term }}</td><td>{{ c.category }}</td><td>{% if c.signed %}Yes{% else %}No{% endif %}</td><td>{{ c.course_text }}</td><td>{{ c.attained }}</td>{% for v in c.po %}<td>{{ v }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+</table>
+{% if r.p.excluded %}<p class="note">Left out: {% for e in r.p.excluded %}{{ e.name }} ({{ e.reason }}){% if not forloop.last %}, {% endif %}{% endfor %}.</p>{% endif %}
+<table>
+  <caption>Three-batch comparison (PO and PSO totals)</caption>
+  <thead><tr><th>Outcome</th>{% for col in r.columns %}<th>{{ col.batch.name }} ({{ col.source }})</th>{% endfor %}</tr></thead>
+  <tbody>{% for code, cells in comparison %}<tr><th>{{ code }}</th>{% for v in cells %}<td>{{ v }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+</table>
+<div class="chart">{{ chart_svg|safe }}</div>
+{% if r.gaps %}
+<table>
+  <caption>Outcomes under target</caption>
+  <thead><tr><th>Outcome</th><th>Value</th><th>Target</th><th>Short by</th></tr></thead>
+  <tbody>{% for g in r.gaps %}<tr><th>{{ g.key }}</th><td>{{ g.value }}</td><td>{{ g.target }}</td><td>{{ g.shortfall }}</td></tr>{% endfor %}</tbody>
+</table>
+{% endif %}
+<h2>Overrides and corrections</h2>
+{% if r.overrides %}
+<table><thead><tr><th>Course</th><th>Tool</th><th>Part</th><th>Pass mark and reason</th></tr></thead>
+<tbody>{% for course, tool, part, text in r.overrides %}<tr><td>{{ course }}</td><td>{{ tool }}</td><td>{{ part }}</td><td>{{ text }}</td></tr>{% endfor %}</tbody></table>
+{% else %}<p class="note">None.</p>{% endif %}
+{% include "reports/_signoff.html" with signoffs=r.signoffs %}
+{% endblock %}

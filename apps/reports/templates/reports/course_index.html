@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Reports - Attainment{% endblock %}
+{% block content %}
+<h1>Reports: {{ offering.course.title }}</h1>
+<p>{{ offering.term }} | <a href="{% url 'results:course' offering.pk %}">Result page</a></p>
+{% for p in programmes %}
+<h2>{{ p.name }}</h2>
+<ul>
+  {% for key, title, has_xlsx in reports %}
+  <li>{{ title }}:
+    <a href="{% url 'reports:course' offering.pk key 'html' %}?programme={{ p.pk }}">view</a> |
+    <a href="{% url 'reports:course' offering.pk key 'pdf' %}?programme={{ p.pk }}">PDF</a>
+    {% if has_xlsx %}| <a href="{% url 'reports:course' offering.pk key 'xlsx' %}?programme={{ p.pk }}">Excel</a>{% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% endfor %}
+{% endblock %}
