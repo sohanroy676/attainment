@@ -12,6 +12,7 @@ from django.utils.http import content_disposition_header
 from django.views.decorators.http import require_GET, require_POST
 
 from apps.academics.models import CourseOffering
+from apps.tenancy.throttle import throttled
 
 from . import services
 from .models import ActionPlan, Evidence, Observation
@@ -99,6 +100,8 @@ def action_add(request: HttpRequest, offering_id: uuid.UUID, plan_id: uuid.UUID)
     plan = get_object_or_404(
         ActionPlan.objects.select_related("offering__term__academic_year"), pk=plan_id
     )
+    if (too_many := throttled(request, "upload")) is not None:
+        return too_many
     try:
         done_on = _date(request.POST.get("done_on", ""))
         if done_on is None:

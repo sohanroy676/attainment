@@ -27,7 +27,7 @@
         <form method="post" action="{% url 'workflow:section_action' cell.section.pk row.assessment.pk 'accept' %}">{% csrf_token %}
           <button type="submit">Accept</button></form>
         <form method="post" action="{% url 'workflow:section_action' cell.section.pk row.assessment.pk 'return' %}">{% csrf_token %}
-          <input name="reason" placeholder="Reason" required><button type="submit">Return</button></form>
+          <input name="reason" aria-label="Reason" placeholder="Reason" required><button type="submit">Return</button></form>
         {% endif %}
       </td>
     {% endfor %}</tr>
@@ -54,7 +54,7 @@
 {% endif %}
 {% if stage.status == 'approved' or stage.status == 'signed' %}{% if may.reopen %}
 <form method="post" action="{% url 'workflow:stage_action' offering.pk programme.pk 'reopen' %}">{% csrf_token %}
-  <input name="reason" placeholder="Reason for reopening" required><button type="submit">Reopen</button></form>
+  <input name="reason" aria-label="Reason for reopening" placeholder="Reason for reopening" required><button type="submit">Reopen</button></form>
 {% endif %}{% endif %}
 
 <h2>Approvals and signatures</h2>

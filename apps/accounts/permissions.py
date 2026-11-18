@@ -7,7 +7,14 @@ from .models import Role
 
 PERMISSIONS: dict[str, frozenset[str]] = {
     Role.COLLEGE_ADMIN: frozenset(
-        {"users.manage", "structure.manage", "roster.manage", "reports.view", "data.export"}
+        {
+            "users.manage",
+            "structure.manage",
+            "roster.manage",
+            "reports.view",
+            "data.export",
+            "privacy.manage",
+        }
     ),
     Role.IQAC: frozenset(
         {

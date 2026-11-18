@@ -227,3 +227,20 @@ __all__ = [
     "reject_roster",
     "rows_of",
 ]
+
+
+def purge_files(section_ids: list[uuid.UUID]) -> int:
+    """Remove the stored upload and parsed rows of imports for these sections.
+
+    The record stays (who, when, counts, the file's checksum) so the history still reads, but
+    the personal data in the file and its rows is gone. Returns how many imports were purged.
+    """
+    rows = ImportBatch.objects.filter(section_id__in=section_ids).exclude(file_content=None)
+    count = 0
+    for batch in rows:
+        batch.file_content = None
+        batch.payload = {}
+        batch.save(update_fields=["file_content", "payload", "updated_at"])
+        audit.record_model("updated", batch, after={"purged": True}, reason="retention")
+        count += 1
+    return count

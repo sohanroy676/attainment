@@ -5,7 +5,7 @@ from datetime import date
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
-from django.db.models import F, QuerySet
+from django.db.models import F, Q, QuerySet
 
 from apps.academics.models import Batch, CourseOffering, Section
 from apps.accounts.models import User
@@ -225,6 +225,21 @@ def current_identifier(
     return None if row is None else row.value
 
 
+def current_identifiers(
+    student_ids: list[uuid.UUID], kind: str = Kind.ROLL_NO, section: Section | None = None
+) -> dict[uuid.UUID, str]:
+    """`current_identifier` for many students in one query (the newest current value wins)."""
+    rows = StudentIdentifier.objects.filter(
+        student_id__in=student_ids, kind=kind, valid_to__isnull=True
+    )
+    if section is not None:
+        rows = rows.filter(Q(scope_section=section) | Q(scope_section__isnull=True))
+    found: dict[uuid.UUID, str] = {}
+    for row in rows.order_by("-created_at"):
+        found.setdefault(row.student_id, row.value)
+    return found
+
+
 def rename_student(student: Student, name: str, actor: User | None = None) -> Student:
     """Correct a student's name. The audit event records that the name changed, not the names."""
     name = name.strip()
@@ -239,3 +254,60 @@ def rename_student(student: Student, name: str, actor: User | None = None) -> St
             after=audit.snapshot(student), reason="name corrected",
         )  # fmt: skip
     return student
+
+
+# privacy ---------------------------------------------------
+ANONYMISED_NAME = "Anonymised student"
+
+
+def student_record(student: Student) -> dict[str, object]:
+    """Everything the roster holds about one student, as plain data (for the data export)."""
+    return {
+        "student_id": str(student.pk),
+        "name": student.name,
+        "status": student.status,
+        "identifiers": [
+            {
+                "kind": i.kind, "value": i.value,
+                "valid_from": i.valid_from, "valid_to": i.valid_to,
+            }
+            for i in student.identifiers.order_by("created_at")
+        ],
+        "batches": [
+            {"batch": m.batch.name, "programme": m.batch.programme.name,
+             "valid_from": m.valid_from, "valid_to": m.valid_to, "reason": m.reason}
+            for m in student.batches.select_related("batch__programme").order_by("created_at")
+        ],
+        "sections": [
+            {"section": m.section.name, "course": str(m.section.offering),
+             "valid_from": m.valid_from, "valid_to": m.valid_to, "reason": m.reason}
+            for m in student.sections.select_related("section__offering").order_by("created_at")
+        ],
+        "enrolments": [
+            {"course": str(e.offering), "section": e.section.name, "status": e.status,
+             "date_from": e.date_from, "date_to": e.date_to}
+            for e in student.enrolments.select_related("offering", "section").order_by("created_at")
+        ],
+    }  # fmt: skip
+
+
+def student_batch_end_years(student: Student) -> list[tuple[str, int]]:
+    """(batch name, end year) for every batch the student belongs to or belonged to."""
+    return [(m.batch.name, m.batch.end_year) for m in student.batches.select_related("batch")]
+
+
+def anonymise_identity(student: Student, actor: User | None = None) -> None:
+    """Replace the name and every identifier value. Marks and enrolments stay, so results do.
+
+    The audit log never held the name or the values (`audit_exclude`), so its chain is unchanged.
+    """
+    with transaction.atomic():
+        student.name = ANONYMISED_NAME
+        student.save(update_fields=["name", "updated_at"])
+        for identifier in student.identifiers.all():
+            identifier.value = f"ANON-{identifier.pk.hex[:16]}"
+            identifier.save(update_fields=["value", "updated_at"])
+        audit.record_model(
+            "updated", student, actor_id=_actor(actor), after=audit.snapshot(student),
+            reason="anonymised after the retention period",
+        )  # fmt: skip

@@ -2,6 +2,20 @@
 
 ## Unreleased (built, not yet released; manual tests and golden data pending)
 
+### v0.11.0 - hardening, privacy and operations (built, not yet released)
+- Security: decompression-bomb guard on every Excel upload; per-user rate limits on PDF rendering, uploads and the full export; `verify_audit` command (every college, non-zero exit on a broken chain); `create_college` command; dependency audit in CI; `docs/security-review.md`.
+- Isolation sweep: every record endpoint found in the URL configuration is requested with GET and POST as six users of another college.
+- Privacy (`apps/privacy`): retention list, notice, then anonymising of name and identifiers after the notice period (marks stay; stored upload files purged; audit chain stays valid); per-student data export (audited); `anonymise_roster` for fixtures and demo data; `RetentionNotice` table with RLS.
+- Operations: encrypted backup and restore scripts, scheduled restore test, `update.sh` with rollback, `docker-compose.prod.yml` (no published database port, read-only app, log rotation, public or internal HTTPS, `ops` profile with the superuser login).
+- Performance: the marks grid loaded rows, cells and roll numbers per student (2.4 s for 130 x 30); now bulk-loaded. Performance tests for the grid and the result pages.
+- Accessibility: a script scans the key pages; fixed unlabelled mark cells and reason boxes and report pages without a main area.
+- Fix: an error inside `college_context` was hidden by a second error while restoring the college.
+- Documents: admin guide, user guide, known limits, privacy notice template, test report with what was not run.
+- Not done: demo deployment, full update-cycle test (A9), 10-college volume test, manual tests M1 to M6.
+
+### v0.10.0 - reports and exports (built, not yet released)
+- PDF reports (WeasyPrint) from HTML templates with a footer and a provisional watermark: CO sheet per assessment, theory and lab analysis, CO-PO/PSO table, Action Taken Report, batch report with a three-batch chart, explanation appendix. Excel for the main tables, NBA course list, full college export (Excel and JSON). Per-college template override.
+
 ### v0.9.0 - department, batch and quality loop (built, not yet released)
 - Batch roll-up from signed course runs per programme batch (PO and PSO direct, indirect, total, status, core and non-core counts), recording the course runs used and the ones left out; indirect values and targets per outcome; a switch to include unsigned courses (marked, provisional).
 - Batch sign-off: prepared (IQAC), approved (HoD), signed (principal); the signed batch run is frozen by the database; reopening needs a reason and starts a new cycle.

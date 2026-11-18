@@ -13,6 +13,7 @@ from apps.academics.models import Batch, Section
 from apps.academics.services import sections_visible_to
 from apps.accounts.services import has_permission
 from apps.roster import services as roster
+from apps.tenancy.throttle import throttled
 
 from . import services
 from .historic import import_historic
@@ -41,6 +42,8 @@ def upload(request: HttpRequest, section_id: uuid.UUID) -> HttpResponse:
     if not _may_import(request, section):
         raise PermissionDenied
     if request.method == "POST":
+        if (too_many := throttled(request, "upload")) is not None:
+            return too_many
         file = request.FILES.get("file")
         scope = request.POST.get("scope", "section")
         if file is None:
@@ -101,6 +104,8 @@ def historic_upload(request: HttpRequest, batch_id: uuid.UUID) -> HttpResponse:
     if not has_permission(request.user, "batch.prepare", "programme", batch.programme_id):
         raise PermissionDenied
     if request.method == "POST":
+        if (too_many := throttled(request, "upload")) is not None:
+            return too_many
         file = request.FILES.get("file")
         if file is None:
             add_message(request, constants.ERROR, "Please choose a file.")

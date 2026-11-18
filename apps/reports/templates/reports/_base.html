@@ -12,6 +12,8 @@
   <p>Method {{ footer.method_version|default:"none" }} | engine {{ footer.engine_version|default:"none" }} | run {{ footer.run_id }} | data status {{ footer.data_status }}</p>
   <p>Generated <span data-generated>{{ footer.generated_at|date:"Y-m-d H:i" }} UTC</span> | hash ({{ footer.hash_note }}) <span data-hash>{{ footer.content_hash }}</span></p>
 </div>
+<main>
 {% block body %}{% endblock %}
+</main>
 </body>
 </html>

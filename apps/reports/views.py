@@ -15,6 +15,7 @@ from apps.academics.models import Batch, CourseOffering, Programme
 from apps.accounts.services import has_permission
 from apps.audit import services as audit
 from apps.results import services as results
+from apps.tenancy.throttle import throttled
 
 from . import context, excel, export
 from . import render as rendering
@@ -60,6 +61,8 @@ def _deliver(
             status=503,
             content_type="text/plain",
         )
+    if (too_many := throttled(request, "pdf")) is not None:
+        return too_many
     response = HttpResponse(rendering.to_pdf(html), content_type="application/pdf")
     response["Content-Disposition"] = f'inline; filename="{filename}.pdf"'
     return response
@@ -165,6 +168,8 @@ def full_export(request: HttpRequest, fmt: str) -> HttpResponse:
         raise Http404
     if not has_permission(request.user, "data.export"):
         raise PermissionDenied
+    if (too_many := throttled(request, "export")) is not None:
+        return too_many
     audit.record(
         "college.exported",
         "college",

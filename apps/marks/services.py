@@ -296,3 +296,30 @@ def engine_assessment(
 def student_ids(assessment: Assessment, sections: list[Section] | None = None) -> list[str]:
     """Internal ids of the students with a mark row (for the course's enrolled list)."""
     return sorted(engine_assessment(assessment, sections).marks)
+
+
+def student_marks(student_id: uuid.UUID) -> list[dict[str, object]]:
+    """Every mark of one student with its history, as plain data (for the data export)."""
+    out: list[dict[str, object]] = []
+    rows = MarkSheetRow.objects.filter(enrolment__student_id=student_id).select_related(
+        "assessment", "enrolment__offering"
+    )
+    for row in rows.order_by("assessment__name", "created_at"):
+        cells = []
+        for cell in row.cells.select_related("part").order_by("part__code"):
+            cells.append(
+                {
+                    "part": cell.part.code, "state": cell.state, "value": cell.value,
+                    "entered_at": cell.entered_at, "source": cell.source,
+                    "history": [
+                        {"at": c.at, "from": [c.old_state, c.old_value],
+                         "to": [c.new_state, c.new_value], "reason": c.reason}
+                        for c in history(cell)
+                    ],
+                }
+            )  # fmt: skip
+        out.append(
+            {"course": str(row.enrolment.offering), "assessment": row.assessment.name,
+             "attempt": row.attempt, "status": row.status, "cells": cells}
+        )  # fmt: skip
+    return out

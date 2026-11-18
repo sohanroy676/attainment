@@ -25,7 +25,7 @@
 {% endif %}
 {% if stage.status == 'approved' or stage.status == 'signed' %}{% if may.reopen %}
 <form method="post" action="{% url 'workflow:batch_action' batch.pk 'reopen' %}">{% csrf_token %}
-  <input name="reason" placeholder="Reason for reopening" required><button type="submit">Reopen</button></form>
+  <input name="reason" aria-label="Reason for reopening" placeholder="Reason for reopening" required><button type="submit">Reopen</button></form>
 {% endif %}{% endif %}
 
 <h2>Approvals and signatures</h2>
