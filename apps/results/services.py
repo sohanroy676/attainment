@@ -17,16 +17,17 @@ from django.core.exceptions import ValidationError
 from django.db import connection, transaction
 from django.utils import timezone
 
-from apps.academics.models import CourseOffering, Programme, Section
+from apps.academics.models import Batch, CourseOffering, Programme, Section
 from apps.accounts.models import User
 from apps.assessments import services as papers
 from apps.audit import services as audit
 from apps.marks import services as marks
 from apps.methodology import services as methods
 from apps.outcomes import services as outcomes
-from apps.outcomes.models import CourseDefinitionVersion, Target
+from apps.outcomes.models import CourseDefinitionVersion, ProgrammeOutcome, Target
 from apps.roster.models import Enrolment
 from apps.tenancy.services import college_context, get_current_college_id
+from engine.batch import BatchCourse, BatchInput, batch_result_to_dict, run_batch
 from engine.display import display
 from engine.hashing import result_to_dict
 from engine.model import CourseInput, OfferingInput, Override
@@ -35,7 +36,7 @@ from engine.precision import decimal_text
 from engine.schema import MethodConfig
 from engine.trace import Trace
 
-from .models import CalculationRun, IndirectValue, ResultValue
+from .models import BatchIndirect, BatchRun, CalculationRun, IndirectValue, ResultValue
 
 log = logging.getLogger(__name__)
 
@@ -369,3 +370,178 @@ def offerings_with_runs() -> list[uuid.UUID]:
 
 def section_result(run: CalculationRun, section: Section) -> dict[str, Any] | None:
     return run.outputs.get("sections", {}).get(section.name)
+
+
+# batch roll-up ---------------------------------------------
+def batch_outcomes(programme: Programme) -> list[ProgrammeOutcome]:
+    """The POs then the PSOs of a programme (latest version of each code), in report order."""
+    newest: dict[str, ProgrammeOutcome] = {}
+    for row in ProgrammeOutcome.objects.filter(
+        programme=programme, kind__in=[ProgrammeOutcome.Kind.PO, ProgrammeOutcome.Kind.PSO]
+    ).order_by("version"):
+        newest[row.code] = row
+
+    def order(row: ProgrammeOutcome) -> tuple[bool, int, str]:
+        digits = "".join(ch for ch in row.code if ch.isdigit())
+        return (row.kind == ProgrammeOutcome.Kind.PSO, int(digits or 0), row.code)
+
+    return sorted(newest.values(), key=order)
+
+
+def batch_offerings(batch: Batch) -> list[CourseOffering]:
+    """Every offering that has a section of this batch (and its programme)."""
+    ids = (
+        Section.objects.filter(programme=batch.programme, batch=batch)
+        .values_list("offering_id", flat=True)
+        .distinct()
+    )
+    return list(
+        CourseOffering.objects.filter(pk__in=ids)
+        .select_related("course", "term")
+        .order_by("course__title", "term__academic_year__start_date", "term__number")
+    )
+
+
+def set_batch_indirect(
+    batch: Batch, values: dict[str, Decimal | str], note: str, actor: User
+) -> None:
+    """Enter indirect values per PO or PSO of a batch. They are "entered, not measured"."""
+    known = {o.code for o in batch_outcomes(batch.programme)}
+    for code, raw in values.items():
+        if code not in known:
+            raise ValidationError(f"{code} is not an outcome of this programme.")
+        if not 0 <= Decimal(raw) <= 10:
+            raise ValidationError(f"{code}: the value must be between 0 and 10.")
+    with transaction.atomic():
+        for code, raw in values.items():
+            row, created = BatchIndirect.objects.update_or_create(
+                batch=batch, outcome_code=code,
+                defaults={"value": Decimal(raw), "source_note": note, "entered_by": actor},
+            )  # fmt: skip
+            audit.record_model(
+                "created" if created else "updated", row, actor_id=actor.pk,
+                after=audit.snapshot(row), reason="indirect value entered, not measured",
+            )  # fmt: skip
+
+
+def _course_po_values(run: CalculationRun) -> dict[str, Decimal | None]:
+    return {v.key: (Decimal(v.value) if v.value else None) for v in run.values.filter(entity="po")}
+
+
+def calculate_batch(
+    batch: Batch,
+    actor: User | None = None,
+    include_unsigned: bool = False,
+    keep: bool = False,
+) -> BatchRun:
+    """Roll the course results of a programme batch up into PO and PSO values.
+
+    By default only signed course runs go in, and the ones left out are listed with the reason.
+    With `include_unsigned` the newest run of an unsigned course is used and marked as such.
+    The batch is provisional while anything is left out, unsigned, missing or stopped.
+    """
+    programme = batch.programme
+    outcome_rows = batch_outcomes(programme)
+    checklist: list[str] = []
+    offerings = batch_offerings(batch)
+    included: list[tuple[CourseOffering, CalculationRun]] = []
+    excluded: list[dict[str, str]] = []
+    for offering in offerings:
+        run = signed_run(offering, programme)
+        if run is None and include_unsigned:
+            run = latest_run(offering, programme)
+        if run is None:
+            reason = "no result yet" if include_unsigned else "not signed yet"
+            excluded.append(
+                {"offering": str(offering.pk), "name": offering.course.title, "reason": reason}
+            )
+            checklist.append(f"{offering.course.title} is left out: {reason}.")
+            continue
+        if not run.signed:
+            checklist.append(f"{offering.course.title} is included but not signed.")
+        if run.status != CalculationRun.Status.COMPLETE:
+            checklist.append(f"{offering.course.title} is included but its result is provisional.")
+        if (
+            Section.objects.filter(offering=offering, programme=programme)
+            .exclude(batch=batch)
+            .exists()
+        ):
+            checklist.append(
+                f"{offering.course.title} also has sections of another batch; its course "
+                "result counts in each batch it serves."
+            )
+        included.append((offering, run))
+
+    version = None
+    if offerings:
+        found = methods.method_for_offering(offerings[0], programme_id=programme.pk)
+        version = None if found is None else found[0]
+    if version is None and included:
+        version = included[0][1].method_version
+    outputs: dict[str, Any] = {"outcomes_order": [o.code for o in outcome_rows]}
+    trace: list[dict[str, Any]] = []
+    engine_version = input_hash = ""
+    status = "provisional"
+    if version is None:
+        checklist.append("No method is assigned to this programme (or none is active yet).")
+    elif not outcome_rows:
+        checklist.append("The programme has no POs or PSOs defined.")
+    else:
+        config = methods.parse_config(version.config_text)
+        targets = {
+            t.outcome.code: t.value
+            for t in Target.objects.filter(batch=batch).select_related("outcome")
+        }
+        indirect = {i.outcome_code: i.value for i in BatchIndirect.objects.filter(batch=batch)}
+        for row in outcome_rows:
+            if row.code not in targets:
+                checklist.append(f"No target has been set for {row.code}.")
+            if config.batch.indirect > 0 and row.code not in indirect:
+                checklist.append(f"No indirect value has been entered for {row.code}.")
+        batch_input = BatchInput(
+            courses=tuple(
+                BatchCourse(
+                    str(offering.pk),
+                    offering.course.title,
+                    offering.course.category,
+                    _course_po_values(run),
+                    run.outputs.get("attained"),
+                )  # fmt: skip
+                for offering, run in included
+            ),
+            outcomes=tuple(o.code for o in outcome_rows),
+            targets=targets,
+            indirect=indirect,
+        )
+        out = run_batch(config, batch_input)
+        engine_version, input_hash = out.result.engine_version, out.result.input_hash
+        outputs.update(batch_result_to_dict(out.result))
+        trace = _trace_json(out.trace)
+        if out.result.complete and not checklist:
+            status = "complete"
+    used = [
+        {
+            "offering": str(offering.pk), "name": offering.course.title,
+            "category": offering.course.category, "run": str(run.pk), "signed": run.signed,
+            "run_hash": run.content_hash or run.input_hash,
+        }
+        for offering, run in included
+    ]  # fmt: skip
+    with transaction.atomic():
+        BatchRun.objects.filter(batch=batch, is_latest=True, kept=False).delete()
+        BatchRun.objects.filter(batch=batch, is_latest=True).update(is_latest=False)
+        batch_run = BatchRun.objects.create(
+            batch=batch, method_version=version, include_unsigned=include_unsigned,
+            engine_version=engine_version, input_hash=input_hash, started_by=actor,
+            at=timezone.now(), status=status, kept=keep, outputs=outputs, trace=trace,
+            courses=used, excluded=excluded, checklist=checklist,
+        )  # fmt: skip
+        audit.record_model(
+            "created", batch_run, actor_id=None if actor is None else actor.pk,
+            after={"status": status, "kept": keep, "courses": len(used)},
+        )  # fmt: skip
+    return batch_run
+
+
+def latest_batch_run(batch: Batch) -> BatchRun | None:
+    return BatchRun.objects.filter(batch=batch, is_latest=True).first()
