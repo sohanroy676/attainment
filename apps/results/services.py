@@ -30,6 +30,7 @@ from apps.tenancy.services import college_context, get_current_college_id
 from engine.batch import BatchCourse, BatchInput, batch_result_to_dict, run_batch
 from engine.compare import compare_values
 from engine.display import display
+from engine.gaps import Gap, below_target, weakest_questions
 from engine.hashing import result_to_dict
 from engine.model import CourseInput, OfferingInput, Override
 from engine.pipeline import run_offering
@@ -786,3 +787,95 @@ def compare_with_imported(batch: Batch) -> list[SideBySideRow]:
                 )  # fmt: skip
             )
     return rows
+
+
+# the gap view (design 8.9) ---------------------------------
+@dataclass
+class GapRow:
+    key: str
+    value: str
+    target: str
+    shortfall: str
+
+
+@dataclass
+class QuestionRow:
+    tool: str
+    part: str
+    co: str
+    passed: int
+    denominator: int
+    percent: str
+    small_group: bool
+
+
+@dataclass
+class CourseGaps:
+    run: CalculationRun
+    cos: list[GapRow]
+    questions: list[QuestionRow]
+    complete: bool
+
+
+def _config_of(run: CalculationRun | BatchRun) -> MethodConfig | None:
+    return (
+        None if run.method_version is None else methods.parse_config(run.method_version.config_text)
+    )
+
+
+def _gap_rows(gaps: list[Gap], config: MethodConfig, level: str) -> list[GapRow]:
+    return [
+        GapRow(
+            g.key,
+            str(display(config.precision, level, g.value)),
+            str(g.target.normalize()),
+            str(display(config.precision, level, g.shortfall)),
+        )
+        for g in gaps
+    ]
+
+
+def course_gaps(
+    offering: CourseOffering, programme: Programme, question_limit: int = 10
+) -> CourseGaps | None:
+    """COs under the course target and the weakest question parts, from the newest run."""
+    run = latest_run(offering, programme)
+    config = None if run is None else _config_of(run)
+    if run is None or config is None:
+        return None
+    course = run.outputs.get("course", {})
+    target = course.get("target")
+    final = {
+        co: (None if v[0] is None else Decimal(v[0])) for co, v in course.get("final", {}).items()
+    }
+    targets = {} if target is None else dict.fromkeys(final, Decimal(target))
+    cos = _gap_rows(below_target(final, targets, config.precision, "co"), config, "co")
+    entries = [e for trace in run.trace.get("sections", {}).values() for e in trace]
+    questions = [
+        QuestionRow(
+            q.tool,
+            q.part,
+            q.co or "",
+            q.passed,
+            q.denominator,
+            "-" if q.percent is None else str(display(config.precision, "question_pct", q.percent)),
+            q.small_group,
+        )  # fmt: skip
+        for q in weakest_questions(entries, question_limit)
+    ]
+    return CourseGaps(run, cos, questions, run.status == CalculationRun.Status.COMPLETE)
+
+
+def batch_gaps(batch: Batch) -> tuple[BatchRun, list[GapRow]] | None:
+    """The POs and PSOs whose batch total is under their target, from the newest batch run."""
+    run = latest_batch_run(batch)
+    config = None if run is None else _config_of(run)
+    if run is None or config is None:
+        return None
+    totals: dict[str, Decimal | None] = {}
+    targets: dict[str, Decimal] = {}
+    for code, raw in run.outputs.get("outcomes", {}).items():
+        totals[code] = None if raw[3] is None else Decimal(raw[3])
+        if raw[4] is not None:
+            targets[code] = Decimal(raw[4])
+    return run, _gap_rows(below_target(totals, targets, config.precision, "batch"), config, "batch")

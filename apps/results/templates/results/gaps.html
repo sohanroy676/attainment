@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Gaps - Attainment{% endblock %}
+{% block content %}
+<h1>{{ offering.course.title }}: gaps</h1>
+<p>{{ offering.term }} - {{ programme.name }}
+  | <a href="{% url 'results:course' offering.pk %}?programme={{ programme.pk }}">Result page</a></p>
+{% if gaps %}
+{% if not gaps.complete %}<p><strong>This result is provisional</strong>, so the gaps may change.</p>{% endif %}
+<h2>Course outcomes below the target</h2>
+{% if gaps.cos %}
+<table>
+  <thead><tr><th>CO</th><th>Attainment</th><th>Target</th><th>Short by</th></tr></thead>
+  <tbody>{% for g in gaps.cos %}<tr><th scope="row">{{ g.key }}</th><td>{{ g.value }}</td><td>{{ g.target }}</td><td>{{ g.shortfall }}</td></tr>{% endfor %}</tbody>
+</table>
+{% else %}
+<p>No course outcome is below the target.</p>
+{% endif %}
+<h2>Weakest questions</h2>
+<p>Question parts ranked by the share of students who passed them, lowest first.</p>
+<table>
+  <thead><tr><th>Tool</th><th>Part</th><th>CO</th><th>Passed</th><th>Out of</th><th>Share passed (%)</th></tr></thead>
+  <tbody>
+  {% for q in gaps.questions %}
+    <tr><td>{{ q.tool }}</td><td>{{ q.part }}</td><td>{{ q.co }}</td><td>{{ q.passed }}</td><td>{{ q.denominator }}</td>
+      <td>{{ q.percent }}{% if q.small_group %} (small group){% endif %}</td></tr>
+  {% empty %}<tr><td colspan="6">No question data yet.</td></tr>{% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>There is no result yet, so there are no gaps to show.</p>
+{% endif %}
+{% endblock %}

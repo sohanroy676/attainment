@@ -304,3 +304,46 @@ def batch_compare_page(request: HttpRequest, batch_id: uuid.UUID) -> HttpRespons
             ),
         },
     )
+
+
+@login_required
+def course_gaps_page(request: HttpRequest, offering_id: uuid.UUID) -> HttpResponse:
+    """COs under the target and the weakest questions of one course result."""
+    offering = get_object_or_404(
+        CourseOffering.objects.select_related("course", "term"), pk=offering_id
+    )
+    if not _may_view_course(request, offering):
+        raise PermissionDenied
+    programme = _programme(request, offering)
+    if programme is None:
+        return render(
+            request,
+            "results/choose.html",
+            {"offering": offering, "programmes": services.programmes_of(offering)},
+        )
+    return render(
+        request,
+        "results/gaps.html",
+        {
+            "offering": offering,
+            "programme": programme,
+            "gaps": services.course_gaps(offering, programme),
+        },
+    )
+
+
+@login_required
+def batch_gaps_page(request: HttpRequest, batch_id: uuid.UUID) -> HttpResponse:
+    batch = _batch_or_404(batch_id)
+    if not has_permission(request.user, "reports.view", "programme", batch.programme_id):
+        raise PermissionDenied
+    found = services.batch_gaps(batch)
+    return render(
+        request,
+        "results/batch_gaps.html",
+        {
+            "batch": batch,
+            "run": None if found is None else found[0],
+            "rows": [] if found is None else found[1],
+        },
+    )
