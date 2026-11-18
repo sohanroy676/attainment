@@ -4,8 +4,10 @@ from decimal import Decimal, localcontext
 
 import pytest
 from django.core.exceptions import ValidationError
+from django.test import Client
 
 from apps.academics.models import Batch, Course, Section
+from apps.accounts.tests.helpers import PASSWORD
 from apps.outcomes import services as outcomes
 from apps.outcomes.models import ProgrammeOutcome
 from apps.results import services
@@ -171,3 +173,59 @@ def test_a12_another_college_never_sees_the_batch_run(db: None) -> None:
         assert services.BatchIndirect.objects.count() == 0
     with college_context(a.college.id):
         assert BatchRun.objects.count() == 1
+
+
+# the pages -------------------------------------------------
+def _login(username: str) -> Client:
+    client = Client()
+    response = client.post("/accounts/login/", {"username": username, "password": PASSWORD})
+    assert response.status_code == 302
+    return client
+
+
+def test_the_batch_page_shows_values_and_says_indirect_is_entered(committed_db: None) -> None:
+    w = make_wf_env()
+    batch = w.env.s.batch
+    with college_context(w.college.id):
+        signed(w)
+    iqac = _login("a.iqac")
+    inputs = f"/results/batch/{batch.pk}/inputs/"
+    page = iqac.get(inputs).content.decode()
+    assert 'name="target:PO1"' in page and "entered, not measured" in page
+    saved = iqac.post(
+        inputs, {"target:PO1": "2.5", "target:PO2": "2.5", "indirect:PO1": "3", "indirect:PO2": "3"}
+    )
+    assert saved.status_code == 302
+    assert iqac.post(f"/results/batch/{batch.pk}/", {}).status_code == 302
+    page = iqac.get(f"/results/batch/{batch.pk}/").content.decode()
+    assert "PO1" in page and "Complete" in page and "Attained" in page
+    assert "entered, not measured" in page
+    assert "Deep Learning (synthetic)" in page
+
+
+def test_only_the_right_roles_open_or_change_a_batch(committed_db: None) -> None:
+    w = make_wf_env()
+    batch = w.env.s.batch
+    other = make_wf_env("b")
+    url = f"/results/batch/{batch.pk}/"
+    assert _login("a.hod").get(url).status_code == 200  # reports.view over the department
+    assert _login("a.hod").post(url, {}).status_code == 403  # but not batch.prepare
+    assert _login("a.hod").get(url + "inputs/").status_code == 403
+    assert _login("a.lecturer_a").get(url).status_code == 403  # section scope only
+    assert Client().get(url).status_code == 302  # not logged in: sent to log in
+    assert other.college.id != w.college.id
+    assert _login("b.iqac").get(url).status_code == 404  # another college's batch is invisible
+
+
+def test_the_unsigned_switch_marks_the_courses_it_adds(committed_db: None) -> None:
+    w = make_wf_env()
+    batch = w.env.s.batch
+    with college_context(w.college.id):
+        services.calculate(w.offering, w.programme)
+    iqac = _login("a.iqac")
+    url = f"/results/batch/{batch.pk}/"
+    iqac.post(url, {})
+    assert "Left out" in iqac.get(url).content.decode()
+    iqac.post(url, {"include_unsigned": "1"})
+    page = iqac.get(url).content.decode()
+    assert "not signed yet" in page and "not signed" in page and "checked" in page

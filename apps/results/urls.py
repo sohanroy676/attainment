@@ -5,6 +5,8 @@ from . import views
 app_name = "results"
 
 urlpatterns = [
+    path("batch/<uuid:batch_id>/", views.batch_page, name="batch"),
+    path("batch/<uuid:batch_id>/inputs/", views.batch_inputs_page, name="batch_inputs"),
     path("<uuid:offering_id>/", views.course_page, name="course"),
     path("<uuid:offering_id>/recalculate/", views.recalculate, name="recalculate"),
     path("<uuid:offering_id>/section/<uuid:section_id>/", views.section_page, name="section"),

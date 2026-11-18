@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Batch targets and indirect values - Attainment{% endblock %}
+{% block content %}
+<h1>Targets and indirect values: {{ batch.programme.name }}, batch {{ batch.name }}</h1>
+{% if messages %}<ul class="errorlist">{% for message in messages %}<li>{{ message }}</li>{% endfor %}</ul>{% endif %}
+<p>Indirect values are <strong>entered, not measured</strong> until surveys exist, and every result says so. Leave a box empty to keep its saved value.</p>
+<form method="post">
+  {% csrf_token %}
+  <table>
+    <thead><tr><th>Outcome</th><th>Target</th><th>Indirect</th></tr></thead>
+    <tbody>
+    {% for code, target, indirect in rows %}
+      <tr>
+        <th scope="row">{{ code }}</th>
+        <td><input aria-label="Target for {{ code }}" name="target:{{ code }}" value="{{ target }}"></td>
+        <td><input aria-label="Indirect value for {{ code }}" name="indirect:{{ code }}" value="{{ indirect }}"></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <p><label for="note">Source note</label><input id="note" name="note"></p>
+  <button type="submit">Save</button>
+</form>
+<p><a href="{% url 'results:batch' batch.pk %}">Back to the batch result</a></p>
+{% endblock %}

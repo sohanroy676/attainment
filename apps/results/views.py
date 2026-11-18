@@ -8,16 +8,17 @@ import openpyxl
 from django.contrib.auth.decorators import login_required
 from django.contrib.messages import add_message, constants
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.db import transaction
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods, require_POST
 
-from apps.academics.models import CourseOffering, Programme, Section
+from apps.academics.models import Batch, CourseOffering, Programme, Section
 from apps.accounts.services import has_permission
 
 from . import services
 from .models import CalculationRun, IndirectValue
-from .present import present
+from .present import present, present_batch
 
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
@@ -195,3 +196,87 @@ def export(request: HttpRequest, offering_id: uuid.UUID) -> HttpResponse:
     response = HttpResponse(out.getvalue(), content_type=XLSX)
     response["Content-Disposition"] = 'attachment; filename="result.xlsx"'
     return response
+
+
+# batch pages -----------------------------------------------
+def _batch_or_404(batch_id: uuid.UUID) -> Batch:
+    return get_object_or_404(Batch.objects.select_related("programme"), pk=batch_id)
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def batch_page(request: HttpRequest, batch_id: uuid.UUID) -> HttpResponse:
+    batch = _batch_or_404(batch_id)
+    programme_id = batch.programme_id
+    if not has_permission(request.user, "reports.view", "programme", programme_id):
+        raise PermissionDenied
+    can_prepare = has_permission(request.user, "batch.prepare", "programme", programme_id)
+    if request.method == "POST":
+        if not can_prepare:
+            raise PermissionDenied
+        services.calculate_batch(
+            batch,
+            actor=request.user,
+            include_unsigned=request.POST.get("include_unsigned") == "1",
+            keep="snapshot" in request.POST,
+        )
+        add_message(
+            request,
+            constants.SUCCESS,
+            "A snapshot of the batch result was kept."
+            if "snapshot" in request.POST
+            else "The batch result was recalculated.",
+        )
+        return redirect(request.path)
+    run = services.latest_batch_run(batch)
+    return render(
+        request,
+        "results/batch.html",
+        {
+            "batch": batch,
+            "p": None if run is None else present_batch(run),
+            "can_prepare": can_prepare,
+            "include_unsigned": bool(run and run.include_unsigned),
+        },
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def batch_inputs_page(request: HttpRequest, batch_id: uuid.UUID) -> HttpResponse:
+    """Targets per outcome (batch.prepare) and indirect values (indirect.enter)."""
+    batch = _batch_or_404(batch_id)
+    if not has_permission(request.user, "batch.prepare", "programme", batch.programme_id):
+        raise PermissionDenied
+    rows = services.batch_inputs(batch)
+    if request.method == "POST":
+        targets = {
+            code: request.POST[f"target:{code}"]
+            for code, _t, _i in rows
+            if request.POST.get(f"target:{code}", "").strip()
+        }
+        indirect = {
+            code: request.POST[f"indirect:{code}"]
+            for code, _t, _i in rows
+            if request.POST.get(f"indirect:{code}", "").strip()
+        }
+        try:
+            if indirect and not has_permission(request.user, "indirect.enter"):
+                raise PermissionDenied
+            with transaction.atomic():
+                services.set_batch_targets(batch, targets, request.user)
+                if indirect:
+                    services.set_batch_indirect(
+                        batch, indirect, request.POST.get("note", ""), request.user
+                    )
+        except PermissionDenied:
+            add_message(request, constants.ERROR, "Only IQAC may enter indirect values.")
+        except (ValidationError, InvalidOperation) as error:
+            for message in getattr(error, "messages", ["Please enter numbers."]):
+                add_message(request, constants.ERROR, message)
+        else:
+            add_message(
+                request, constants.SUCCESS, "Saved. Indirect values are entered, not measured."
+            )
+            return redirect(request.path)
+    return render(request, "results/batch_inputs.html", {"batch": batch, "rows": rows})

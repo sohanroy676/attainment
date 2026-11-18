@@ -545,3 +545,31 @@ def calculate_batch(
 
 def latest_batch_run(batch: Batch) -> BatchRun | None:
     return BatchRun.objects.filter(batch=batch, is_latest=True).first()
+
+
+def set_batch_targets(batch: Batch, values: dict[str, Decimal | str], actor: User) -> None:
+    """Set the target of each named PO or PSO for a batch (one value each, 0 to 10)."""
+    wanted = {o.code: o for o in batch_outcomes(batch.programme)}
+    for code in values:
+        if code not in wanted:
+            raise ValidationError(f"{code} is not an outcome of this programme.")
+    with transaction.atomic():
+        for code, raw in values.items():
+            outcomes.set_target(raw, outcome=wanted[code], batch=batch, actor=actor)
+
+
+def batch_inputs(batch: Batch) -> list[tuple[str, str, str]]:
+    """(outcome code, target text, indirect text) for every PO and PSO of the batch."""
+    targets = {
+        t.outcome.code: t.value
+        for t in Target.objects.filter(batch=batch).select_related("outcome")
+    }
+    indirect = {i.outcome_code: i.value for i in BatchIndirect.objects.filter(batch=batch)}
+    return [
+        (
+            o.code,
+            "" if o.code not in targets else str(targets[o.code].normalize()),
+            "" if o.code not in indirect else str(indirect[o.code].normalize()),
+        )
+        for o in batch_outcomes(batch.programme)
+    ]
