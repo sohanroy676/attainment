@@ -12,6 +12,8 @@ APPEND_ONLY_TABLES = (
     "marks_markchange",
     "workflow_signature",
     "workflow_reopening",
+    "workflow_batchsignature",
+    "workflow_batchreopening",
 )
 
 

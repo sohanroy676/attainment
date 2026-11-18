@@ -573,3 +573,51 @@ def batch_inputs(batch: Batch) -> list[tuple[str, str, str]]:
         )
         for o in batch_outcomes(batch.programme)
     ]
+
+
+def batch_content_hash(run: BatchRun) -> str:
+    """SHA-256 over everything a batch signature vouches for: the inputs, the course runs that
+    went in (and the ones left out), the method version and the outputs."""
+    payload = {
+        "input_hash": run.input_hash,
+        "engine_version": run.engine_version,
+        "method_hash": "" if run.method_version is None else run.method_version.content_hash,
+        "courses": run.courses,
+        "excluded": run.excluded,
+        "outputs": run.outputs,
+    }
+    text = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
+    return hashlib.sha256(text.encode()).hexdigest()
+
+
+def seal_batch(run: BatchRun, actor: User) -> BatchRun:
+    """Freeze a kept, complete batch run at sign-off. After this the database refuses changes."""
+    if run.signed:
+        raise ValidationError("This batch result is already signed.")
+    if not run.kept:
+        raise ValidationError("Only a kept batch result can be signed.")
+    if run.status != "complete":
+        raise ValidationError("A batch result that is not complete cannot be signed.")
+    if run.include_unsigned:
+        raise ValidationError("A batch result with unsigned courses cannot be signed.")
+    run.signed = True
+    run.content_hash = batch_content_hash(run)
+    run.save(update_fields=["signed", "content_hash", "updated_at"])
+    audit.record_model(
+        "updated", run, actor_id=actor.pk, after={"signed": True, "content_hash": run.content_hash}
+    )
+    return run
+
+
+def signed_batch_run(batch: Batch) -> BatchRun | None:
+    """The newest signed batch run, or None."""
+    return BatchRun.objects.filter(batch=batch, signed=True).order_by("-at").first()
+
+
+def batch_differs_from_signed(batch: Batch) -> bool:
+    """True when the current batch result no longer matches the signed one."""
+    signed = signed_batch_run(batch)
+    latest = latest_batch_run(batch)
+    if signed is None or latest is None or latest.pk == signed.pk:
+        return False
+    return latest.input_hash != signed.input_hash

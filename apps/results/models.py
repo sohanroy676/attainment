@@ -129,6 +129,8 @@ class BatchRun(TenantRecord):
     )
     is_latest = models.BooleanField(default=True)
     kept = models.BooleanField(default=False)
+    signed = models.BooleanField(default=False)  # frozen at sign-off: the database refuses changes
+    content_hash = models.CharField(max_length=64, blank=True)  # set when signed
     outputs = models.JSONField(default=dict)
     trace = models.JSONField(default=list)
     courses = models.JSONField(default=list)

@@ -10,14 +10,14 @@ from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
-from apps.academics.models import CourseOffering, Programme, Section
+from apps.academics.models import Batch, CourseOffering, Programme, Section
 from apps.accounts.services import has_permission
 from apps.assessments.models import Assessment
 from apps.audit.models import AuditEvent
 from apps.results import services as results
 
 from . import services
-from .machine import SECTION_MOVES, STAGE_MOVES
+from .machine import BATCH_MOVES, SECTION_MOVES, STAGE_MOVES
 
 
 def _say(request: HttpRequest, error: ValidationError | PermissionDenied) -> None:
@@ -128,3 +128,51 @@ def audit_log(request: HttpRequest) -> HttpResponse:
         events = events.filter(action__startswith=wanted)
     page = Paginator(events, 50).get_page(request.GET.get("page"))
     return render(request, "workflow/audit.html", {"page": page, "wanted": wanted})
+
+
+@login_required
+def batch_stage_page(request: HttpRequest, batch_id: uuid.UUID) -> HttpResponse:
+    batch = get_object_or_404(Batch.objects.select_related("programme"), pk=batch_id)
+    if not has_permission(request.user, "reports.view", "programme", batch.programme_id):
+        raise PermissionDenied
+    stage = services.batch_stage_of(batch)
+    signed = results.signed_batch_run(batch)
+    return render(
+        request,
+        "workflow/batch_stage.html",
+        {
+            "batch": batch,
+            "stage": stage,
+            "signatures": [] if stage is None else list(stage.signatures.order_by("at")),
+            "reopenings": [] if stage is None else list(stage.reopenings.order_by("at")),
+            "differs": results.batch_differs_from_signed(batch),
+            "signed_run": signed,
+            "may": {
+                action: has_permission(
+                    request.user, move.permission, "programme", batch.programme_id
+                )
+                for (_, action), move in BATCH_MOVES.items()
+            },
+        },
+    )
+
+
+@login_required
+@require_POST
+def batch_stage_action(request: HttpRequest, batch_id: uuid.UUID, action: str) -> HttpResponse:
+    batch = get_object_or_404(Batch.objects.select_related("programme"), pk=batch_id)
+    try:
+        if action == "prepare":
+            services.prepare_batch(batch, request.user)
+        elif action == "approve":
+            services.approve_batch(batch, request.user)
+        elif action == "sign":
+            services.sign_batch(batch, request.user)
+        elif action == "reopen":
+            services.reopen_batch(batch, request.user, request.POST.get("reason", ""))
+        else:
+            raise Http404
+        add_message(request, constants.SUCCESS, f"Done: {action}.")
+    except (ValidationError, PermissionDenied) as error:
+        _say(request, error)
+    return redirect("workflow:batch", batch.pk)

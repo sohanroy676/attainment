@@ -3,7 +3,8 @@
 {% block content %}
 <h1>{{ batch.programme.name }}, batch {{ batch.name }}</h1>
 {% if messages %}<ul>{% for message in messages %}<li>{{ message }}</li>{% endfor %}</ul>{% endif %}
-{% if can_prepare %}<p><a href="{% url 'results:batch_inputs' batch.pk %}">Targets and indirect values</a></p>{% endif %}
+<p><a href="{% url 'workflow:batch' batch.pk %}">Approval status</a>
+{% if can_prepare %} | <a href="{% url 'results:batch_inputs' batch.pk %}">Targets and indirect values</a>{% endif %}</p>
 {% if p %}
 <p>Method: {{ p.method_name }}. Status: {% if p.complete %}Complete{% else %}Provisional{% endif %}.
   Engine {{ p.run.engine_version }}, input {{ p.run.input_hash|slice:":12" }}.
