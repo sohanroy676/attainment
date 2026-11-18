@@ -1,0 +1,67 @@
+# Production overlay. Use it together with the base file:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# HTTPS: set SITE_ADDRESS in .env to the public name (for example attainment.example.edu) and
+# Caddy gets and renews a certificate by itself. For an internal name with no public DNS set
+# CADDY_TLS_DIRECTIVE="tls internal" and Caddy signs with its own certificate authority; install that
+# authority (caddy_data/caddy/pki/authorities/local/root.crt) on the users' machines.
+
+services:
+  db:
+    ports: !reset []
+    logging: &log-rotation
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  migrate:
+    logging: *log-rotation
+
+  app:
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging: *log-rotation
+
+  caddy:
+    environment:
+      CADDY_TLS_DIRECTIVE: ${CADDY_TLS_DIRECTIVE:-}
+    logging: *log-rotation
+
+  # Operations jobs (audit verify, retention). It carries the database superuser login that the
+  # web app never sees, and only starts when asked for:
+  #   docker compose --profile ops run --rm ops python manage.py verify_audit --all
+  ops:
+    profiles: ["ops"]
+    build: .
+    environment:
+      DJANGO_SETTINGS_MODULE: ${DJANGO_SETTINGS_MODULE:-config.settings.prod}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?set DJANGO_SECRET_KEY in .env}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
+      POSTGRES_DB: ${POSTGRES_DB:-attainment}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_APP_USER: ${DB_APP_USER:-attainment_app}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD}
+      DB_OWNER_USER: ${DB_OWNER_USER:-attainment_owner}
+      DB_OWNER_PASSWORD: ${DB_OWNER_PASSWORD}
+      RETENTION_YEARS: ${RETENTION_YEARS:-5}
+      RETENTION_NOTICE_DAYS: ${RETENTION_NOTICE_DAYS:-30}
+    depends_on:
+      db:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging: *log-rotation

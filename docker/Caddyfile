@@ -1,5 +1,7 @@
+# CADDY_TLS_DIRECTIVE=tls internal signs with Caddy's own authority (no public DNS).
 # SITE_ADDRESS=:80 serves plain http (local). A real domain gets an automatic certificate.
 {$SITE_ADDRESS::80} {
+	{$CADDY_TLS_DIRECTIVE:}
 	encode gzip
 	reverse_proxy app:8000
 }
