@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Retention - Attainment{% endblock %}
+{% block content %}
+<h1>Student records past the retention period</h1>
+<p>Identities are anonymised {{ years }} years after the batch ends, and only after {{ days }} days on notice.
+  The notice and the anonymising are run with <code>manage.py retention</code>.</p>
+<table>
+  <caption>Students due for anonymising</caption>
+  <thead><tr><th>Student id</th><th>Batches</th><th>Period ended</th><th>State</th><th>Notified</th><th>Ready on</th><th>Data</th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr><td>{{ r.student.pk }}</td><td>{{ r.batches|join:", " }}</td><td>{{ r.eligible_since }}</td><td>{{ r.state }}</td>
+      <td>{{ r.notified_on|default:"-" }}</td><td>{{ r.ready_on|default:"-" }}</td>
+      <td><a href="{% url 'privacy:export' r.student.pk %}">Export</a></td></tr>
+  {% empty %}<tr><td colspan="7">No student is past the retention period.</td></tr>{% endfor %}
+  </tbody>
+</table>
+{% endblock %}

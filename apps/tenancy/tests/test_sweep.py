@@ -26,6 +26,7 @@ from apps.outcomes.models import CourseDefinitionVersion
 from apps.quality.models import ActionPlan, Evidence
 from apps.reports import export
 from apps.results.models import CalculationRun
+from apps.roster.models import Student
 from apps.tenancy.services import college_context
 from apps.workflow.tests.helpers import make_wf_env
 
@@ -46,6 +47,7 @@ ID_MODELS: dict[str, Any] = {
     "run_id": CalculationRun,
     "evidence_id": Evidence,
     "plan_id": ActionPlan,
+    "student_id": Student,
 }
 WORDS = {
     "action": ["submit", "accept", "review", "approve", "sign", "reopen", "prepare"],
@@ -88,7 +90,7 @@ def _fill(route: str, pool: dict[str, list[str]]) -> list[str]:
 def _pool() -> dict[str, list[str]]:
     pool = {name: [str(pk) for pk in model.objects.values_list("pk", flat=True)[:PER_PARAMETER]]
             for name, model in ID_MODELS.items()}  # fmt: skip
-    pool.update({k: v for k, v in WORDS.items()})
+    pool.update(WORDS)
     for name, values in pool.items():
         assert values, f"college A has no {name} to sweep with"
     return pool

@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "apps.workflow",
     "apps.quality",
     "apps.reports",
+    "apps.privacy",
     "apps.imports",
     "apps.audit",
     "apps.integration",
@@ -199,3 +200,8 @@ LOGGING = {
     "handlers": {"console": {"class": "logging.StreamHandler"}},
     "root": {"handlers": ["console"], "level": "INFO"},
 }
+
+# Privacy: a student's identity is anonymised this many years after their batch ends, and only
+# after the person has been on notice for this many days (design section 12).
+RETENTION_YEARS = int(env("RETENTION_YEARS", "5"))
+RETENTION_NOTICE_DAYS = int(env("RETENTION_NOTICE_DAYS", "30"))

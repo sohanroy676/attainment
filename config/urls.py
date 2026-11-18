@@ -18,5 +18,6 @@ urlpatterns = [
     path("results/", include("apps.results.urls")),
     path("quality/", include("apps.quality.urls")),
     path("reports/", include("apps.reports.urls")),
+    path("privacy/", include("apps.privacy.urls")),
     path("", home, name="home"),
 ]
