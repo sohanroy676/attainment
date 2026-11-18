@@ -16,17 +16,13 @@ from apps.assessments.models import Assessment
 from apps.imports.models import ImportBatch
 from apps.imports.parsers import UnreadableFile
 from apps.roster.models import Enrolment
-from apps.roster.services import current_identifier
+from apps.roster.services import current_identifiers
 from apps.tenancy.throttle import throttled
 
 from . import importer, services
-from .models import MarkCell
+from .models import MarkCell, MarkSheetRow
 
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-
-
-def _roll(enrolment: Enrolment, section: Section) -> str:
-    return current_identifier(enrolment.student, section=section) or "-"
 
 
 @login_required
@@ -77,8 +73,19 @@ def grid(request: HttpRequest, assessment_id: uuid.UUID, section_id: uuid.UUID) 
             return redirect(request.path)
         add_message(request, constants.ERROR, "Some marks were not saved; see the marked cells.")
     rows = []
-    for enrolment in sorted(enrolments, key=lambda e: (len(_roll(e, section)), _roll(e, section))):
-        sheet = services.get_row(enrolment, assessment)
+    rolls = current_identifiers([e.student_id for e in enrolments], section=section)
+    sheets = {
+        r.enrolment_id: r
+        for r in MarkSheetRow.objects.filter(
+            assessment=assessment, attempt="regular", enrolment__in=enrolments
+        ).prefetch_related("cells")
+    }
+
+    def roll_of(enrolment: Enrolment) -> str:
+        return rolls.get(enrolment.student_id) or "-"
+
+    for enrolment in sorted(enrolments, key=lambda e: (len(roll_of(e)), roll_of(e))):
+        sheet = sheets.get(enrolment.pk)
         stored = {} if sheet is None else {c.part_id: c for c in sheet.cells.all()}
         cells = []
         for part in parts:
@@ -95,7 +102,7 @@ def grid(request: HttpRequest, assessment_id: uuid.UUID, section_id: uuid.UUID) 
                     "cell": cell,
                 }
             )
-        rows.append({"roll": _roll(enrolment, section), "cells": cells})
+        rows.append({"roll": roll_of(enrolment), "cells": cells})
     context = {
         "assessment": assessment,
         "section": section,

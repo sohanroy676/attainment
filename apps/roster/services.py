@@ -5,7 +5,7 @@ from datetime import date
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
-from django.db.models import F, QuerySet
+from django.db.models import F, Q, QuerySet
 
 from apps.academics.models import Batch, CourseOffering, Section
 from apps.accounts.models import User
@@ -223,6 +223,21 @@ def current_identifier(
         rows = rows.filter(scope_section=section) | rows.filter(scope_section__isnull=True)
     row = rows.order_by("-created_at").first()
     return None if row is None else row.value
+
+
+def current_identifiers(
+    student_ids: list[uuid.UUID], kind: str = Kind.ROLL_NO, section: Section | None = None
+) -> dict[uuid.UUID, str]:
+    """`current_identifier` for many students in one query (the newest current value wins)."""
+    rows = StudentIdentifier.objects.filter(
+        student_id__in=student_ids, kind=kind, valid_to__isnull=True
+    )
+    if section is not None:
+        rows = rows.filter(Q(scope_section=section) | Q(scope_section__isnull=True))
+    found: dict[uuid.UUID, str] = {}
+    for row in rows.order_by("-created_at"):
+        found.setdefault(row.student_id, row.value)
+    return found
 
 
 def rename_student(student: Student, name: str, actor: User | None = None) -> Student:
