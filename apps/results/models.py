@@ -55,6 +55,8 @@ class CalculationRun(TenantRecord):
     status = models.CharField(max_length=12, choices=Status.choices, default=Status.PROVISIONAL)
     is_latest = models.BooleanField(default=True)
     kept = models.BooleanField(default=False)  # a snapshot: never replaced or removed
+    signed = models.BooleanField(default=False)  # frozen at sign-off: the database refuses changes
+    content_hash = models.CharField(max_length=64, blank=True)  # set when signed
     outputs = models.JSONField(default=dict)
     trace = models.JSONField(default=dict)
     checklist = models.JSONField(default=list)  # what is missing, in plain words

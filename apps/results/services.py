@@ -5,6 +5,8 @@ other modules (through their services), runs `engine.run_offering`, and stores t
 the method version, engine version and input hash.
 """
 
+import hashlib
+import json
 import logging
 import uuid
 from dataclasses import dataclass, field
@@ -231,6 +233,53 @@ def latest_run(offering: CourseOffering, programme: Programme) -> CalculationRun
 def snapshot(offering: CourseOffering, programme: Programme, actor: User) -> CalculationRun:
     """Keep a run permanently (design 6.6: at submit, approve, sign, or on request)."""
     return calculate(offering, programme, actor=actor, keep=True)
+
+
+def run_content_hash(run: CalculationRun) -> str:
+    """SHA-256 over everything a signature vouches for: inputs, method version and outputs."""
+    payload = {
+        "input_hash": run.input_hash,
+        "engine_version": run.engine_version,
+        "method_hash": "" if run.method_version is None else run.method_version.content_hash,
+        "outputs": run.outputs,
+    }
+    text = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
+    return hashlib.sha256(text.encode()).hexdigest()
+
+
+def seal(run: CalculationRun, actor: User) -> CalculationRun:
+    """Freeze a kept, complete run at sign-off. After this the database refuses any change."""
+    if run.signed:
+        raise ValidationError("This run is already signed.")
+    if not run.kept:
+        raise ValidationError("Only a kept run can be signed.")
+    if run.status != CalculationRun.Status.COMPLETE:
+        raise ValidationError("A result that is stopped for review cannot be signed.")
+    run.signed = True
+    run.content_hash = run_content_hash(run)
+    run.save(update_fields=["signed", "content_hash", "updated_at"])
+    audit.record_model(
+        "updated", run, actor_id=actor.pk, after={"signed": True, "content_hash": run.content_hash}
+    )
+    return run
+
+
+def signed_run(offering: CourseOffering, programme: Programme) -> CalculationRun | None:
+    """The newest signed run, or None."""
+    return (
+        CalculationRun.objects.filter(offering=offering, programme=programme, signed=True)
+        .order_by("-at")
+        .first()
+    )
+
+
+def differs_from_signed(offering: CourseOffering, programme: Programme) -> bool:
+    """True when the current result no longer matches the signed one (marks or method moved on)."""
+    signed = signed_run(offering, programme)
+    latest = latest_run(offering, programme)
+    if signed is None or latest is None or latest.pk == signed.pk:
+        return False
+    return latest.input_hash != signed.input_hash
 
 
 # explaining a number ---------------------------------------

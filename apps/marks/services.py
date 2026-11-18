@@ -193,6 +193,42 @@ def submit_row(row: MarkSheetRow, actor: User) -> MarkSheetRow:
     return row
 
 
+def set_rows_status(
+    assessment: Assessment, section: Section, status: str, actor: User, reason: str = ""
+) -> int:
+    """Move every started mark row of a section to `status` (submitted, or back to entered).
+
+    Used by the workflow when a lecturer submits or a coordinator returns a section's marks.
+    Returns the number of rows changed. Rows nobody has started stay as they are.
+    """
+    if status not in (MarkSheetRow.Status.SUBMITTED, MarkSheetRow.Status.ENTERED):
+        raise ValidationError("Rows can only be submitted or returned to entered.")
+    if assessment.status in LOCKED:
+        raise ValidationError("These marks are locked.")
+    rows = list(
+        MarkSheetRow.objects.filter(assessment=assessment, enrolment__section=section)
+        .exclude(status__in=[MarkSheetRow.Status.NOT_STARTED, status])
+    )  # fmt: skip
+    for row in rows:
+        before = audit.snapshot(row)
+        row.status = status
+        row.save(update_fields=["status", "updated_at"])
+        audit.record_model(
+            "updated", row, actor_id=actor.pk, before=before, after=audit.snapshot(row),
+            reason=reason or f"marks {status}",
+        )  # fmt: skip
+    return len(rows)
+
+
+def started_rows(assessment: Assessment, section: Section) -> int:
+    """How many students of the section have any marks started for this assessment."""
+    return (
+        MarkSheetRow.objects.filter(assessment=assessment, enrolment__section=section)
+        .exclude(status=MarkSheetRow.Status.NOT_STARTED)
+        .count()
+    )
+
+
 def history(cell: MarkCell) -> QuerySet[MarkChange]:
     return MarkChange.objects.filter(cell_id_value=cell.pk).order_by("at", "created_at")
 

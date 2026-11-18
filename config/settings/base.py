@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "apps.marks",
     "apps.methodology",
     "apps.results",
+    "apps.workflow",
     "apps.quality",
     "apps.reports",
     "apps.imports",

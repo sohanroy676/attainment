@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Audit log - Attainment{% endblock %}
+{% block content %}
+<h1>Audit log</h1>
+<form method="get">
+  <label>Action starts with <input name="action" value="{{ wanted }}"></label>
+  <button type="submit">Filter</button>
+</form>
+<table>
+  <thead><tr><th>#</th><th>When</th><th>Who (id)</th><th>Action</th><th>Record</th><th>Reason</th></tr></thead>
+  <tbody>
+  {% for e in page %}
+    <tr><td>{{ e.seq }}</td><td>{{ e.at|date:"Y-m-d H:i" }}</td><td>{{ e.actor_id|default:"system" }}</td>
+        <td>{{ e.action }}</td><td>{{ e.entity }} {{ e.entity_id }}</td><td>{{ e.reason }}</td></tr>
+  {% empty %}
+    <tr><td colspan="6">No events.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+<p>{% if page.has_previous %}<a href="?page={{ page.previous_page_number }}&amp;action={{ wanted }}">Newer</a>{% endif %}
+   {% if page.has_next %}<a href="?page={{ page.next_page_number }}&amp;action={{ wanted }}">Older</a>{% endif %}</p>
+{% endblock %}

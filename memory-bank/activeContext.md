@@ -1,7 +1,7 @@
 # Active Context
 
 ## Current focus
-v0.2.0 to v0.4.0 are built locally as stacked branches (no push yet; owner runs manual tests later, all at once). Next build: v0.8.0 (workflow and governance: submit, accept, approve, sign, freeze, override, reopen).
+v0.2.0 to v0.4.0 are built locally as stacked branches (no push yet; owner runs manual tests later, all at once). v0.8.0 (workflow and governance) is built and verified locally. Next build: v0.9.0 (department, batch and quality loop).
 
 ## Decisions (settled, do not re-ask)
 - Stack: Python 3.12, uv, Django 5.2 LTS, PostgreSQL 16+, HTMX; pure `engine/` package with `Decimal` (ADRs 0002 to 0004).
@@ -79,10 +79,18 @@ v0.2.0 to v0.4.0 are built locally as stacked branches (no push yet; owner runs 
 - Pages need `reports.view` over the offering (course) or section; the lecturer therefore sees section pages only. Explain filters trace entries by the viewer's section permissions. `indirect.enter` (IQAC) is the new permission for indirect values.
 - Not built yet in v0.7.0: round/truncate switch in the interface (it is the method's precision), band-edge marker is on tool percentages only.
 
+## v0.8.0 design choices (settled)
+- `apps/workflow`: `SectionState` (per section and assessment), `ResultStage` (per offering and programme, with `cycle`), `Signature` (approval and signature records), `Reopening`, `SupportGrant`. Transition tables in `machine.py`.
+- Approve keeps a snapshot run and refuses a provisional result; it locks every paper of the offering (assessment status approved). Sign seals the run (`results.seal`, `signed` and `content_hash` on `CalculationRun`; triggers freeze the run and its values, only `is_latest` may change). Reopen: `data.reopen` plus reason, cycle+1, new run, unlock unless another programme's stage is still locked.
+- `marks_markcell` has a DB trigger refusing writes on approved or locked assessments. SEE is submitted by `marks.enter_see` (exam branch).
+- Overrides (per-part pass marks, ADR 0008) are refused after approval in `assessments.services`.
+- Open: department-scoped audit viewer for HoD (viewer is college-wide only), enforcement of `SupportGrant` (needs platform-admin role), "overridden" marker on result pages (M3), email reminders (out of scope).
+- `decide_override` checks `override.apply` over the offering's scope, so a department HoD can decide for their own offerings.
+
 ## Environment notes
 - Write files as UTF-8, no BOM, LF endings.
 - `gh` auth may be unavailable in cloud sessions; check CI with the GitHub MCP tools.
 - Real mentor workbooks only in gitignored `data/private/`; committed fixtures are anonymised.
 
 ## Next step
-Build v0.5.0. Owner later: build DS-A and DS-B, run golden tests, run all manual tests (v0.2.0 M1-M4, v0.3.0 M1-M4, v0.4.0 M1-M5, v0.1.0 M1-M5), then push the stacked branches in order, one PR each.
+Build v0.9.0. Owner later: build DS-A and DS-B, run golden tests, run all manual tests (v0.2.0 M1-M4, v0.3.0 M1-M4, v0.4.0 M1-M5, v0.1.0 M1-M5), then push the stacked branches in order, one PR each.
